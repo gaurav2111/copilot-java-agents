@@ -1,0 +1,41 @@
+// Gradle init script: run OpenRewrite WITHOUT touching build.gradle(.kts). Used by scripts/rewrite.sh.
+// Based on https://docs.openrewrite.org/running-recipes/running-rewrite-on-a-gradle-project-without-modifying-the-build
+// The build must not already apply the org.openrewrite.rewrite plugin or declare a rewrite {} block.
+//   ./gradlew rewriteDryRun --init-script scripts/rewrite-init.gradle \
+//       -Drewrite.activeRecipe=org.openrewrite.java.migrate.UpgradeToJava21 \
+//       -Drewrite.recipeArtifacts=org.openrewrite.recipe:rewrite-migrate-java:RELEASE
+// System properties: rewrite.activeRecipe (required), rewrite.recipeArtifacts (comma list, optional),
+//                    rewrite.pluginVersion (default below), rewrite.configFile (default rewrite.yml at the root).
+initscript {
+    repositories {
+        // Corporate mirror first if your ~/.gradle/init.d already rewrites repositories; otherwise these two.
+        maven { url = uri(System.getProperty('rewrite.pluginRepo', 'https://plugins.gradle.org/m2')) }
+        mavenCentral()
+        // Post-August-2026 versions: Code Genome (authenticated). Credentials from env, since init scripts cannot read gradle.properties.
+        if (System.getenv('CODE_GENOME_TOKEN')) {
+            maven {
+                url = uri('https://artifacts.codegenomeproject.org/maven')
+                credentials { username = System.getenv('CODE_GENOME_USERNAME') ?: 'token'; password = System.getenv('CODE_GENOME_TOKEN') }
+            }
+        }
+    }
+    dependencies {
+        classpath("org.openrewrite:plugin:${System.getProperty('rewrite.pluginVersion', '7.41.0')}")   // 7.41.0 = last on the Plugin Portal (2026-08-26); 7.44.1 on Code Genome
+    }
+}
+
+rootProject {
+    plugins.apply(org.openrewrite.gradle.RewritePlugin)
+    def artifacts = (System.getProperty('rewrite.recipeArtifacts') ?: '').split(',').findAll { it?.trim() }
+    dependencies {
+        artifacts.each { rewrite(it.trim()) }
+    }
+    rewrite {
+        activeRecipe(System.getProperty('rewrite.activeRecipe'))
+        configFile = rootProject.file(System.getProperty('rewrite.configFile', 'rewrite.yml'))
+        exportDatatables = true
+    }
+    afterEvaluate {
+        if (repositories.isEmpty()) { repositories.mavenCentral() }
+    }
+}
