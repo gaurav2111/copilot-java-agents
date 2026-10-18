@@ -42,7 +42,13 @@ public class CveTriage {
                 reach = direct ? "DIRECT" : "TRANSITIVE";
                 resolved = hits.stream().map(h -> h.resolved).filter(Objects::nonNull).distinct().collect(Collectors.joining("/"));
                 if (resolved.isEmpty()) resolved = "?";
-                via = hits.stream().map(h -> h.via).distinct().limit(3).collect(Collectors.joining(" ; "));
+                // compact: "<module> via <first hop>" (the direct dependency that drags the artifact in), deduplicated
+                via = hits.stream().map(h -> {
+                    int colon = h.via.indexOf(": ");
+                    if (colon < 0) return h.via;                                   // direct: just the module
+                    String[] chain = h.via.substring(colon + 2).split(" -> ");
+                    return h.via.substring(0, colon) + " via " + chain[0];
+                }).distinct().limit(3).collect(Collectors.joining(" ; "));
                 boolean viaSpring = hits.stream().anyMatch(h -> h.via.contains("spring-boot") || h.via.contains("org.springframework"));
                 List<String> rv = hits.stream().map(h -> h.resolved).filter(Objects::nonNull).distinct().collect(Collectors.toList());
                 boolean allFixed = !fix.equals("?") && !rv.isEmpty() && rv.stream().allMatch(v -> compareVersions(v, fix) >= 0);

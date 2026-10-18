@@ -11,8 +11,10 @@ MODULE="${1:-}"; MAX="${2:-60}"
 
 if [ "$BUILD" = gradle ]; then
   P="$(gradle_path "$MODULE")"
+  # No module: run the tasks in EVERY project (bare task names). With a module: that project only (":p:task").
+  if [ -z "$P" ]; then TASKS="compileJava compileTestJava"; else TASKS="${P}:compileJava ${P}:compileTestJava"; fi
   # shellcheck disable=SC2086
-  OUT=$($BW -q $OFFLINE --console=plain ${P}:compileJava ${P}:compileTestJava -x test 2>&1)
+  OUT=$($BW -q $OFFLINE --console=plain $TASKS -x test 2>&1)
   STATUS=$?
   ERR_RE='\.java:[0-9]+: error:|^e: |error: |cannot find symbol|package .* does not exist|incompatible types|does not override'
 else

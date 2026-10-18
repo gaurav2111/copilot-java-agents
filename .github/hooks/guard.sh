@@ -8,9 +8,15 @@ INPUT=$(cat)
 echo "$INPUT" | grep -qiE '"toolName"\s*:\s*"(execute|bash|shell|powershell|run_in_terminal|runInTerminal)[^"]*"' || exit 0
 
 DENY_PATTERNS=(
-  'git +push +[^|]*(-f|--force)'          # force push
-  'git +push +[^|]*(main|master|release)' # direct push to protected branches
-  'git +(reset +--hard|clean +-[a-z]*f|checkout +\.|branch +-D)'
+  # --- git: agents are read-only on git; the user commits at COMMIT POINTs (AGENT-PROTOCOL.md section 5)
+  'git +(add|commit|switch|stash|rebase|merge|cherry-pick|tag|push|am|apply)( |$)'
+  'git +checkout +(-b|-B|--orphan|\.)'
+  'git +(reset +--hard|clean +-[a-z]*f|branch +-D)'
+  # --- downloads and installs: never automatic
+  '(^|[^a-zA-Z0-9_-])(brew|apt(-get)?|yum|dnf|choco|winget|scoop|sdk|jabba|asdf|pip3?|npm|npx) +(install|i|add|use)( |$)'
+  '(^|[^a-zA-Z0-9_-])gradlew? +wrapper( |$)'
+  '(^|[^a-zA-Z0-9_-])(wget +|curl +-[a-zA-Z]*[Oo])'
+  'foojay|toolchainManagement'
   'mvn[^|]* +(deploy|release:)'            # publishing
   'gradle[^|]* +publish'
   'rm +-[a-z]*r[a-z]* +(/|~|\.\.|\$HOME)'  # recursive delete outside the tree

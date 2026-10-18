@@ -1,0 +1,52 @@
+# Testing the pack in IntelliJ with GitHub Copilot
+
+Four stages, cheapest first. Each step has an expected result and what a failure means. Use the `sample-app/` folder
+next to this pack (it has every flaw the agents target: old Java target, Spring Boot 2.7, four CVEs, a JUnit 4 module,
+an untested class) or any small internal Gradle repository with the pack copied in.
+
+## Before you start
+- Copy `.github/`, `scripts/`, `rewrite.yml` to the repo root (already done in `sample-app/`). `chmod +x scripts/*.sh`.
+  Windows: run the shell scripts from Git Bash or WSL; the two Java tools run anywhere with a JDK 11+.
+- Fill the stack block at the top of `.github/copilot-instructions.md` (done for `sample-app/`).
+- Settings > Plugins > GitHub Copilot: note the version. Custom agents need 1.6.1+, hooks 1.10.0+.
+- Work on a branch. Agents never run git write commands; you commit at the COMMIT POINTs they mark.
+
+## Stage 1: the files load (10 min)
+| # | Do | Expect | If not |
+|---|---|---|---|
+| 1 | Copilot Chat > Agent mode > agent picker | `planner`, `upgrader`, `security-fixer`, `migrator`, `test-engineer`, `docs-writer` listed | Plugin < 1.6.1, or org policy "editor preview features" off. Ask the Copilot admin. |
+| 2 | Type `/` in the chat box | `plan`, `upgrade-java`, `upgrade-spring-boot`, `fix-cves`, `fix-sast`, `add-tests`, `raise-coverage`, `add-integration-test`, `migrate`, `document`, `review-upgrade-pr`, `resume` | Files not under `.github/prompts/` at the repo root, or project opened at a parent folder. |
+| 3 | Plain Agent mode: "what build commands should you use in this repo?" | Quotes the `scripts/` commands; References panel lists `copilot-instructions.md` | Always-on file not picked up: check "Enable custom instructions" in Copilot settings. |
+| 4 | Open a file under `src/test`, ask "what are the test rules here?" | Layout/naming, unit, integration, hard rules sections; References lists `tests.instructions.md` only (plus the always-on file) | `applyTo` glob does not match the layout. |
+
+## Stage 2: scripts run on the office machine (10 min, IntelliJ terminal, repo root)
+| # | Command | Expect | If not |
+|---|---|---|---|
+| 5 | `scripts/compile-errors.sh order-service` | `COMPILE OK (order-service) [gradle]` | `[maven]` on a Gradle repo: set `BUILD_TOOL=gradle`. Offline failure: run once with `BUILD_OFFLINE=""`. |
+| 6 | `scripts/test-summary.sh order-service` | one line `total=2 failures=0 errors=0 skipped=0` (sample-app) | `NO TEST REPORTS FOUND`: results are not under `build/test-results`; report the path. |
+| 7 | `scripts/dep-path.sh org.yaml:snakeyaml` | per-project `RESOLVED` lines (sample-app: 1.30 in `:order-service`) | Empty on Windows Git Bash: paste the raw `gradlew dependencyInsight` output. |
+| 8 | `./gradlew --offline -q :order-service:test` then `java scripts/CoverageGaps.java "**" 70 10` | summary line + table; sample-app ranks `PricingEngine` and `OrderService` first | "no jacoco.xml found": XML report disabled (`reports.xml.required = true`). |
+| 9 | `scripts/dep-tree.sh` then `java scripts/CveTriage.java findings.csv build/deptree.txt` | 5 rows: commons-text TRANSITIVE via `:common`, snakeyaml and jackson TRANSITIVE via Spring Boot, guava DIRECT, spring-web TRANSITIVE | Column mismatch with your scanner: send the CSV header row. |
+| 10 | `scripts/jdk-check.sh 21 order-service` | toolchain facts, empty jdeps/jdeprscan sections, trouble spots: `javax\.annotation\.` 1 file | `jdeps: command not found`: JDK bin not on PATH in the IDE terminal. |
+
+## Stage 3: agents behave (30 min)
+| # | Do | Expect | Breach to report |
+|---|---|---|---|
+| 11 | New chat, `planner`: `/plan upgrade order-service to Java 21` | Tool steps visible (file reads, script runs). Creates `.agent-work/<date>-upgrade-order-service-java21/` with four files. `facts.md` lines each have a path or command. Stops at **G1** with facts and numbered questions (or "no open questions, confirm"). Only after your answer: `plan.md` written and shown. Ends with "no files were changed outside .agent-work/". `git status` shows only `.agent-work/`. | Any "assume"/"likely" in facts. Plan produced in the same message as G1. Any file outside `.agent-work/` changed. No tool steps at all (then the agent has no tools: report plugin version). |
+| 12 | Same chat: "run `git switch -c test-branch`" | `BLOCKED by .github/hooks/guard.sh` | It runs, or asks you for permission: hooks inactive on this plugin version (note, continue). |
+| 13 | New chat: `/document :order-service | readme` | Candidate file list with read budget, waits, then `order-service/README.md` with Mermaid diagrams, Sources / Not covered / Unverified sections, no `inventory.example.internal` value copied | More than 15 files read. Config values or hostnames in the doc. |
+| 14 | New chat: `/add-tests order-service PricingEngine` | Names the exemplar (`OrderServiceTest`), lists behaviours as test names, waits, writes `PricingEngineTest`, runs only it, reports before/after coverage, marks COMMIT POINT | Any edit under `src/main`. `@Disabled`. New test dependency. Mockito introduced (not in the exemplar). |
+| 15 | Watch the per-turn credit indicator during 13 and 14 | Note the numbers; this is the token baseline | |
+
+## Stage 4: one real task end to end (an afternoon)
+| # | Do | Expect |
+|---|---|---|
+| 16 | `scripts/rewrite.sh org.openrewrite.java.RemoveUnusedImports` | per-module count, "no changes proposed" on sample-app. Failure resolving `org.openrewrite:plugin`: mirror does not proxy the Gradle Plugin Portal (Nexus ticket). |
+| 17 | New chat: `/fix-cves findings.csv HIGH` | Triage table, grouped plan at G1/G2, catalog edits with CVE comments, `dep-path` proof per group, COMMIT POINT per group, before/after table. commons-text and guava become catalog bumps; snakeyaml and jackson become "Spring Boot BOM bump" with a stop for approval (it is a 2.7 -> 3.x hop, so expect it to hand off to upgrader rather than do it). |
+| 18 | New chat: `/migrate legacy-reports junit4 -> junit5` | Inventory (2 test files), coverage check, recipe dry run via `TestStackModernise`, apply, zero `org.junit.Test` / `org.hamcrest` references left, `tasks.test { useJUnitPlatform() }` |
+| 19 | `/review-upgrade-pr main` after 17 or 18 | PASS/FAIL checklist with evidence lines |
+| 20 | Long task: close the chat mid-way, new chat `/resume .agent-work/<folder>` | Three-line status, re-runs last verification, continues at the next open step |
+
+## What to send back
+Step number, plugin version, exact output or screenshot, `git status` if files changed. Most fixes are a wording change
+in one agent file or a path in one script.

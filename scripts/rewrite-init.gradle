@@ -20,7 +20,7 @@ initscript {
         }
     }
     dependencies {
-        classpath("org.openrewrite:plugin:${System.getProperty('rewrite.pluginVersion', '7.41.0')}")   // 7.41.0 = last on the Plugin Portal (2026-08-26); 7.44.1 on Code Genome
+        classpath("org.openrewrite:plugin:${System.getProperty('rewrite.pluginVersion', '7.39.0')}")   // 7.39.0 = newest whose rewrite-bom (8.89.0) is on Maven Central; 7.40/7.41 on the Portal need Code Genome; 7.44.1 current there
     }
 }
 

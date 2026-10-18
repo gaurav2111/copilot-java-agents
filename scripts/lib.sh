@@ -11,11 +11,11 @@ detect_build_tool() {
 
   if [ "$BUILD" = gradle ]; then
     if [ -x ./gradlew ]; then BW=./gradlew; else BW=gradle; fi
-    OFFLINE="${BUILD_OFFLINE:---offline}"          # set BUILD_OFFLINE="" to allow downloads
+    OFFLINE="${BUILD_OFFLINE---offline}"           # set BUILD_OFFLINE="" to allow downloads (no colon: empty must count as set)
     BUILD_DIR=build
   else
     if [ -x ./mvnw ]; then BW=./mvnw; else BW=mvn; fi
-    OFFLINE="${BUILD_OFFLINE:--o}"
+    OFFLINE="${BUILD_OFFLINE--o}"
     BUILD_DIR=target
   fi
   export BUILD BW OFFLINE BUILD_DIR

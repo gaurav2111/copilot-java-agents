@@ -20,12 +20,13 @@ if [ "$BUILD" = gradle ]; then
           | grep -vE "No dependencies matching")
     [ -z "$OUT" ] && continue
     echo "MODULE $P ($CONF)"
+    # dependencyInsight prints the REVERSE path: the artifact first, then who requested it, up to the project.
+    # So: RESOLVED = the version actually on the classpath; REQUESTED BY = the chain back to a direct dependency.
     echo "$OUT" | awk -v ga="$G:$A" '
-      $0 ~ "^"ga { print "  RESOLVED  " $0; next }
-      /--- / { line=$0; depth=gsub(/(\||\\|\+|-| ){5}/,"",line); gsub(/^[ |\\+-]+/,"",line)
-               kind = ($0 ~ /^(\\|\+)--- /) ? "DIRECT    " : "TRANSITIVE"
-               print "  " kind " depth=" depth "  " line; next }
-      { print "  " $0 }' | head -n 25
+      $0 ~ "^"ga { v=$0; sub(/ \(.*\)$/,"",v); if (!seen[v]++) print "  RESOLVED      " $0; next }
+      /--- / { line=$0; gsub(/^[ |\\+-]+/,"",line); gsub(/ \(\*\)$/,"",line); if (!seen2[line]++) print "  REQUESTED BY  " line; next }
+      /Selection reasons|  - |constraint|conflict|Forced|By ancestor/ { if (!seen3[$0]++) print "  " $0 }' | head -n 20
+    echo "  (last REQUESTED BY line = the direct dependency to bump or constrain)"
   done
   echo "--- Version catalog / constraints mentioning $A:"
   grep -rn --include=libs.versions.toml --include=build.gradle --include=build.gradle.kts -E "$A" . 2>/dev/null | grep -v '/build/' | head -n 8

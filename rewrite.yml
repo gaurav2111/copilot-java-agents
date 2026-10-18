@@ -6,8 +6,8 @@
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.Java21Upgrade
-displayName: <org> Java 21 upgrade bundle
-description: Java 21 migration plus the repository's own conventions. No syntax modernisation.
+displayName: "<org> Java 21 upgrade bundle"
+description: "Java 21 migration plus the repository's own conventions. No syntax modernisation."
 recipeList:
   - org.openrewrite.java.migrate.UpgradeToJava21
   # Example of a repo-specific follow-up: pin the compiler release in every module that declares it.
@@ -17,7 +17,7 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.Java21UpgradeMinimal
-displayName: <org> Java 21 upgrade, build and removed APIs only
+displayName: "<org> Java 21 upgrade, build and removed APIs only"
 description: >
   For repositories that want syntax modernisation in a separate PR. The official UpgradeToJava21 composite also
   rewrites switch statements, instanceof patterns and text blocks; this bundle keeps only the build/plugin bumps and
@@ -30,13 +30,13 @@ recipeList:
   - org.openrewrite.java.migrate.net.URLConstructorToURICreate
   - org.openrewrite.java.migrate.DeleteDeprecatedFinalize
   - org.openrewrite.java.migrate.RemovedSubjectMethods
-  - org.openrewrite.java.migrate.staticanalysis.ReplaceDeprecatedRuntimeExecMethods
+  - org.openrewrite.staticanalysis.ReplaceDeprecatedRuntimeExecMethods   # lives in rewrite-static-analysis (transitive dep of rewrite-migrate-java); verified against the jar 2026-10-17
   - org.openrewrite.java.migrate.JREDoNotUseSunNetSslAPIs
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.SpringBoot3Upgrade
-displayName: <org> Spring Boot 3.x upgrade bundle
-description: Spring Boot 3 composite (includes javax->jakarta and Spring Framework 6) plus internal BOM bump.
+displayName: "<org> Spring Boot 3.x upgrade bundle"
+description: "Spring Boot 3 composite (includes javax->jakarta and Spring Framework 6) plus internal BOM bump."
 recipeList:
   - org.openrewrite.java.spring.boot3.UpgradeSpringBoot_3_5   # pick the highest minor you target; it chains lower ones
   # Internal parent/BOM managed in Nexus: bump it in the same pass so the reactor stays consistent.
@@ -47,8 +47,8 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.TestStackModernise
-displayName: <org> test stack: JUnit 5, Mockito 5, AssertJ
-description: Run on legacy modules before adding new tests, so new and old tests share one dialect.
+displayName: "<org> test stack: JUnit 5, Mockito 5, AssertJ"
+description: "Run on legacy modules before adding new tests, so new and old tests share one dialect."
 recipeList:
   - org.openrewrite.java.testing.junit5.JUnit4to5Migration
   - org.openrewrite.java.testing.mockito.Mockito1to5Migration
@@ -58,7 +58,7 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.SecurityHygiene
-displayName: <org> code-level security hygiene (REQUIRES a Moderne subscription)
+displayName: "<org> code-level security hygiene (REQUIRES a Moderne subscription)"
 description: >
   org.openrewrite.recipe:rewrite-java-security is under the Moderne Proprietary License. Delete this entry if the
   organisation has no subscription; the security-fixer agent then works manually. Behaviour-preserving fixes only.
@@ -68,8 +68,8 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.BumpDependency
-displayName: <org> bump one dependency everywhere
-description: Template. Copy, rename, and fill in for a CVE fix that must land in many modules.
+displayName: "<org> bump one dependency everywhere"
+description: "Template. Copy, rename, and fill in for a CVE fix that must land in many modules."
 recipeList:
   - org.openrewrite.java.dependencies.UpgradeDependencyVersion:
       groupId: org.yaml
@@ -79,8 +79,8 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: com.<org>.PostMigrationCleanup
-displayName: <org> post-migration cleanup
-description: Run as its own commit after any recipe-driven change. Formatting-neutral cleanups only.
+displayName: "<org> post-migration cleanup"
+description: "Run as its own commit after any recipe-driven change. Formatting-neutral cleanups only."
 recipeList:
   - org.openrewrite.java.RemoveUnusedImports          # core, Apache 2.0, skips files with unresolved types
   - org.openrewrite.staticanalysis.CodeCleanup        # 25 formatting/style fixes; NOT CommonStaticAnalysis, which is opinionated and noisy

@@ -28,7 +28,8 @@ default**; the same scripts and agents work on Maven repositories (the scripts d
     docs-writer.agent.md       diagrams (Mermaid), READMEs, API reference, runbooks, Javadoc, ADRs
   prompts/                     slash commands that pre-select the agent and carry per-run inputs
   hooks/
-    hooks.json + guard.sh      preToolUse: blocks force-push, publish/deploy, recursive rm, infra commands
+    hooks.json + guard.sh      preToolUse: blocks ALL git writes, installs/downloads, publish/deploy, recursive rm, infra
+  AGENT-PROTOCOL.md            facts/decisions/plan/issues files, gates G0-G4, question format, never-do list
 rewrite.yml                    composite OpenRewrite recipes named for your org
 scripts/
   lib.sh                       build-tool detection (Gradle default, Maven fallback), shared helpers
@@ -36,11 +37,19 @@ scripts/
   test-summary.sh              run tests -> counts + failing test names from JUnit XML
   dep-path.sh                  how one artifact reaches each project (Gradle dependencyInsight / Maven tree)
   dep-tree.sh                  dump every project's runtime tree into one file for CveTriage
+  jdk-check.sh                 jdeps --jdk-internals, jdeprscan --for-removal, trouble-spot grep for an upgrade target
   rewrite.sh                   OpenRewrite dry run/apply without touching the build; prints patch summary
   rewrite-init.gradle          Gradle init script used by rewrite.sh (no build.gradle changes)
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
 ```
+
+## Testing the pack
+
+`TESTING.md` is the step-by-step checklist for IntelliJ (four stages, expected result per step). The sibling folder
+`../sample-app/` is a throwaway Gradle multi-project with the pack installed and every flaw the agents target: Java 17
+bytecode without a toolchain, Spring Boot 2.7.18, four CVEs listed in `findings.csv`, a `javax.annotation` import, a
+JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts have been run against it successfully.
 
 ## Setup (per repository)
 
@@ -52,19 +61,27 @@ scripts/
 6. Open Copilot Chat in IntelliJ, switch to Agent mode, and check the mode picker lists `planner`, `upgrader`, ... If not, see "Client support" below.
 7. Smoke test on a small module: `/plan upgrade <module> to Java 21`, read the plan, then switch to `upgrader`. For the docs agent: `/document :<module> | readme`.
 
-## How a task flows
+## How a task flows (protocol in `.github/AGENT-PROTOCOL.md`)
+
+Every agent run keeps four small files under `.agent-work/<date>-<task>/`: `facts.md` (every value with its source),
+`decisions.md` (options offered, answer, who decided), `plan.md` (steps with status, verification result, COMMIT POINTs;
+this is the progress log), `issues.md` (everything found but out of scope). Gates: G0 preflight read, G1 confirm facts
+and ask numbered-option questions, G2 confirm plan, G3 each commit point, G4 report assembled from the files. Agents run
+no git write commands and never download or install anything; the user commits at the commit points. A new chat continues
+any task with `/resume .agent-work/<folder>`, which is also the token-efficient way to run long tasks.
+
 
 ```
-/plan ...          -> planner (read-only) prints plan + risks + a copy-paste prompt
-switch agent       -> upgrader | security-fixer | migrator | test-engineer, paste the prompt
-                      (docs-writer is standalone: /document <subject> | <format>, no plan needed)
-Phase 0 baseline   -> compile OK, tests counted, clean branch
-recipe dry run     -> you read a file list and counts, not a diff
-apply + commit     -> mechanical commit, nothing else in it
-residue by theme   -> one commit per cause
+/plan ...          -> planner: facts.md with sources, G1 questions, then plan.md; no edits
+switch agent       -> upgrader | security-fixer | migrator | test-engineer, say "go" on the plan
+                      (docs-writer is standalone: /document <subject> | <format>)
+Phase 0 baseline   -> compile OK, tests counted, jdk-check facts, you confirm the work branch
+recipe dry run     -> you read a per-module count, not a diff
+apply              -> COMMIT POINT: you commit the mechanical change alone
+residue by theme   -> one COMMIT POINT per cause, plan.md ticked each time
 verify             -> targeted tests, then ONE full build
-report             -> standard 5-section format, pasted into the PR
-new chat           -> next task. Never continue a long chat into a different task.
+report             -> assembled from the four work files, pasted into the PR
+long task          -> new chat, /resume .agent-work/<folder>
 ```
 
 ## Token discipline (what actually saves money)
@@ -76,7 +93,8 @@ new chat           -> next task. Never continue a long chat into a different tas
 | Model never reads raw reports | `CoverageGaps.java`, `CveTriage.java` pre-digest JaCoCo and scanner output into 15-30 lines |
 | Docs are traced, not crawled | `docs-writer` discovers by `grep` (0 reads), then reads at most 8 files for a flow, 15 for a module, by line range |
 | Bounded exploration | every agent has a read budget in Phase 0 and a "do not read outside the module" rule |
-| Plan, confirm, execute | planner agent + explicit stop points avoid expensive retries |
+| Plan, confirm, execute | gates G1/G2/G3 in the protocol; questions batched with numbered options, one message |
+| Resume from files, not history | `/resume` reads four small files; long tasks span several short chats |
 | Mechanical edits bypass the model | OpenRewrite composites in `rewrite.yml`; agents hand-fix residue only |
 | Targeted test runs | `:module:test --tests`, Maven `-pl -am -Dtest=`; whole build once at the end |
 | One task per chat | stated in README and in every agent; history is re-sent on every turn |
@@ -132,8 +150,8 @@ mirror, set `-Drewrite.pluginRepo=<mirror url>` via `REWRITE_PLUGIN_REPO` or edi
 
 | Artifact | Last on Maven Central (date) | Current on Code Genome |
 |---|---|---|
-| `org.openrewrite.maven:rewrite-maven-plugin` | 6.46.1 (2026-08-12) | 6.50.0 |
-| Gradle plugin `org.openrewrite.rewrite` | 7.41.0 on the Plugin Portal (2026-08-26) | 7.44.1 |
+| `org.openrewrite.maven:rewrite-maven-plugin` | 6.46.1 (2026-08-12; depends on `rewrite-bom` 8.89.0, on Central) | 6.50.0 |
+| Gradle plugin `org.openrewrite.rewrite` | **7.39.0** usable from public repos (7.40.0 and 7.41.0 are on the Plugin Portal but need `rewrite-bom` 8.91.0, which is Code Genome only; verified 2026-10-17) | 7.44.1 |
 | `org.openrewrite.recipe:rewrite-recipe-bom` | 3.38.0 (2026-08-26) | 3.41.0 |
 | `rewrite-migrate-java` | 3.42.1 | 3.46.0 |
 | `rewrite-spring` | 6.37.1 | 6.41.0 |
@@ -166,7 +184,9 @@ running/reference docs (plugins, `rewrite.yml` syntax, FAQ) stay on docs.openrew
 | `.github/hooks/hooks.json` (Copilot format) | yes | GA 1.10.0 (plugin notes; cheat sheet lags) | yes, bash only |
 | MCP servers, Plan agent, subagents | yes | yes | MCP yes |
 
-Consequences baked into these files: agents use only `name`, `description`, `tools` with GitHub aliases; prompts use
+Consequences baked into these files: agents use only `name` and `description` (the `tools:` line was removed after a
+JetBrains test showed the planner running with no tools and guessing the Java version; read-only behaviour is now
+enforced in the agent text and verified by `git status`); prompts use
 `agent:` (not the legacy `mode:`); no `handoffs:`; the hook is written in the Copilot `version: 1` format. `argument-hint`
 in prompt files is VS Code-only and harmless elsewhere. Agent bodies stay far under the 30,000-character limit.
 

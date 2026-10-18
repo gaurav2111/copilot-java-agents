@@ -18,6 +18,8 @@
 - Always offline (`--offline` / `-o`) and per project (`:<module>:task`; Maven `-pl <module> -am`). Run the whole build at most once, at the end.
 
 ## Rules that apply to every task
+- Agent runs follow `.github/AGENT-PROTOCOL.md`: facts with sources, four working files under `.agent-work/<task>/`, gates G0-G4, numbered-option questions.
+- No git write commands (the user commits at the COMMIT POINTs you mark). No downloads or installs of JDKs, SDKs, Gradle distributions or tools; write the needed command into `issues.md` and stop.
 - Work in the module the task names. Do not open or edit files outside it unless a compile error or test failure names them.
 - Before the first edit of any multi-step task, write a numbered plan and stop for confirmation.
 - Never add a dependency, plugin, or repository without saying so explicitly in the plan.

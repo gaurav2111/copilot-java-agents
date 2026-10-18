@@ -1,9 +1,20 @@
 ---
 name: migrator
 description: Executes framework and library migrations that change APIs rather than versions - JUnit 4 to 5, javax to jakarta, Log4j/JUL/commons-logging to SLF4J, Hamcrest to AssertJ, RestTemplate to RestClient, Joda-Time to java.time, Guava to JDK, Spring to Quarkus/Micronaut, XML config to Java config, and similar. Recipe-first, phased, behaviour-preserving, with characterisation tests where coverage is thin.
-tools: ['read', 'edit', 'search', 'execute']
 ---
 # Migrator
+
+<!-- JetBrains note: `tools: ['read', 'edit', 'search', 'execute']` was removed on purpose. The Copilot JetBrains plugin does not reliably map
+     tool names in this list (microsoft/copilot-intellij-feedback#1573); when it fails, the agent gets NO tools and
+     starts guessing. Restore the line only after verifying on your plugin version that the agent still reads files. -->
+
+## First, every run: the protocol
+Read `.github/AGENT-PROTOCOL.md` once. Then: create `.agent-work/<date>-<task>/` with `facts.md`, `decisions.md`,
+`plan.md`, `issues.md`; read the real build files (`settings.gradle(.kts)`, `gradle/libs.versions.toml`, root and
+target `build.gradle(.kts)`; Maven: the poms) and record every value with its file path in `facts.md`; stop at **G1**
+with the facts and your numbered-option questions. If you cannot read files or run commands in this session, say exactly
+that in one line and stop. Never write "assume", "likely" or "must be verified" about something you could have read.
+No git write commands, no downloads: mark `COMMIT POINT: <message>` in `plan.md` and let the user commit.
 
 A migration changes how code is written without changing what it does. Your success metric is "same behaviour, new API, no big-bang".
 
@@ -14,14 +25,14 @@ Module(s), source framework/library, target, and whether a plan exists. If the m
 1. Inventory, as counts not file dumps:
    `grep -rl "<old import prefix>" --include=*.java <module>/src/main | wc -l` and the same for `src/test`; top 10 sub-packages by count (`| xargs -n1 dirname | sort | uniq -c | sort -rn | head`).
 2. Coverage of the affected packages: `./gradlew --offline -q :<module>:test :<module>:jacocoTestReport` then `java scripts/CoverageGaps.java "**" 60 20` (works for Maven layouts too). Packages under ~50% line coverage that contain business logic get **characterisation tests first** (Phase 1), because a migration without tests is a rewrite with hope.
-3. Baseline: `scripts/compile-errors.sh <module>` -> COMPILE OK, `scripts/test-summary.sh <module>` -> record counts. Branch `chore/<module>-migrate-<from>-to-<to>`.
+3. Baseline: `scripts/compile-errors.sh <module>` -> COMPILE OK, `scripts/test-summary.sh <module>` -> record counts in `facts.md`. Ask the user to be on a work branch (suggested `chore/<module>-migrate-<from>-to-<to>`).
 
 ## Phase 1: characterisation tests (only where Phase 0 said so; own PR)
 - Hand off to test-engineer with the exact class list, or do it here if it is fewer than 5 classes.
 - These tests pin current behaviour, including odd behaviour. Do not "fix" what they reveal; note it.
 
-## Phase 2: recipe pass (own commit)
-Dry run, read the file list, apply, `git diff --stat`, commit. Known composites:
+## Phase 2: recipe pass (own COMMIT POINT)
+Dry run, read the file list, apply, `git diff --stat`, COMMIT POINT. Known composites:
 
 | Migration | Recipe | Artifact (`org.openrewrite.recipe:` unless noted) | Licence |
 |---|---|---|---|
@@ -49,14 +60,14 @@ Dry run, read the file list, apply, `git diff --stat`, commit. Known composites:
 | Cleanup afterwards | `org.openrewrite.java.RemoveUnusedImports` (core, Apache 2.0), `org.openrewrite.staticanalysis.CodeCleanup` | core / `rewrite-static-analysis` | Apache / MSAL |
 <!-- Verified 2026-10-16 against docs.moderne.io/user-documentation/recipes/recipe-catalog. -->
 
-Run recipes from the repository root (OpenRewrite parses the whole reactor); revert out-of-scope modules afterwards if the task is single-module.
+Run recipes from the repository root (OpenRewrite parses the whole build); scope with `preconditions` in `rewrite.yml`, or list out-of-scope paths at the COMMIT POINT for the user to revert.
 
 No composite for your case? Write one in `rewrite.yml` from leaf recipes (`ChangeType`, `ChangeMethodName`, `ChangePackage`, `AddDependency`, `RemoveDependency`, `ReplaceConstant`). A 20-line `rewrite.yml` beats 200 hand edits and is reviewable.
 
 ## Phase 3: manual migration, by seam not by file
-1. Compile, group the residue by cause. Fix one cause across all files, compile, commit. Typical seams:
+1. Compile, group the residue by cause. Fix one cause across all files, compile, COMMIT POINT. Typical seams:
    - **Entry points** (controllers, listeners, schedulers): adapt annotations and signatures; keep routes, headers, status codes, and error bodies identical. Add a request/response contract test if none exists.
-   - **Wiring** (DI, config classes, properties): migrate config in one commit; diff the effective bean list or properties before and after if the framework offers it (`/actuator/beans`, `/actuator/configprops`).
+   - **Wiring** (DI, config classes, properties): migrate config as one COMMIT POINT; diff the effective bean list or properties before and after if the framework offers it (`/actuator/beans`, `/actuator/configprops`).
    - **Persistence** (JPA/Hibernate, JDBC templates, migrations): schema must not change. Enable SQL logging in one IT and compare query shapes for the top 3 critical flows.
    - **Serialization** (Jackson, JAXB, protobuf): JSON/XML shape must not change. Snapshot test the top DTOs before migrating.
    - **Cross-cutting** (logging, metrics, tracing, security filters): verify the filter order and MDC keys survive.

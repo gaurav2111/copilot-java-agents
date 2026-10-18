@@ -31,7 +31,11 @@ else
 fi
 
 if [ -z "$REPORTS" ]; then
-  echo "NO TEST REPORTS FOUND for $MODULE [$BUILD] (build exit $STATUS). Run scripts/compile-errors.sh $MODULE first."
+  SRC_DIR="$([ "$BUILD" = gradle ] && gradle_dir "$MODULE" || echo "$MODULE")/src/test"
+  if [ ! -d "$SRC_DIR" ] || [ -z "$(find "$SRC_DIR" -name '*.java' -o -name '*.kt' 2>/dev/null | head -1)" ]; then
+    echo "TESTS $MODULE [$BUILD]: no test sources under $SRC_DIR (exit $STATUS)"; exit 0
+  fi
+  echo "NO TEST REPORTS FOUND for $MODULE [$BUILD] (build exit $STATUS) although test sources exist. Run scripts/compile-errors.sh $MODULE first."
   exit 1
 fi
 
