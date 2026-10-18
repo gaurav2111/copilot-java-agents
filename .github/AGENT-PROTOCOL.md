@@ -4,7 +4,7 @@ Every agent in `.github/agents/` follows this protocol. It exists so that nothin
 record, and any task can be resumed in a fresh chat from four small files instead of a long history.
 
 ## 1. Facts come from three places only
-1. **The repository**: build files, version catalog, wrapper properties, CI files, source. Read them.
+1. **The repository**: build files (Groovy `build.gradle` or Kotlin `build.gradle.kts`, both are normal), version catalog or `ext {}` / `gradle.properties`, wrapper properties, CI files, source. Read them.
 2. **Commands**: the scripts in `scripts/`, `java -version`, `./gradlew --version`, `jdeps`, `jdeprscan`, `git log`/`git status`/`git diff`. Run them.
 3. **The user**: for anything the first two cannot answer (target version, scope, severity floor, business constraints, which of several valid strategies). Ask.
 A fact that did not come from one of these does not exist. The words "assume", "likely", "typically", "should be" and

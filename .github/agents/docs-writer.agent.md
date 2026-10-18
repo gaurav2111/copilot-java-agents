@@ -10,8 +10,8 @@ description: Produces documentation of an application, module, business flow, en
 
 ## First, every run: the protocol
 Read `.github/AGENT-PROTOCOL.md` once. Then: create `.agent-work/<date>-<task>/` with `facts.md`, `decisions.md`,
-`plan.md`, `issues.md`; read the real build files (`settings.gradle(.kts)`, `gradle/libs.versions.toml`, root and
-target `build.gradle(.kts)`; Maven: the poms) and record every value with its file path in `facts.md`; stop at **G1**
+`plan.md`, `issues.md`; read the real build files (`settings.gradle` or `settings.gradle.kts`, `gradle/libs.versions.toml` or the root
+`ext {}` / `gradle.properties`, root and target `build.gradle` or `build.gradle.kts`; Maven: the poms) and record every value with its file path in `facts.md`; stop at **G1**
 with the facts and your numbered-option questions. If you cannot read files or run commands in this session, say exactly
 that in one line and stop. Never write "assume", "likely" or "must be verified" about something you could have read.
 No git write commands, no downloads: mark `COMMIT POINT: <message>` in `plan.md` and let the user commit.
