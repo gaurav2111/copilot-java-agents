@@ -30,7 +30,8 @@ out of**, **facts that come from tools**, and **measurement that is published**.
 | U3 | **Runtime verification of Spring upgrades beyond unit tests** (context boot, actuator beans/configprops/conditions diff, properties-migrator diagnostics as structured issues) | field failures that unit tests missed: `NoSuchFieldError` after SDK bump, Spotify's green-but-broken upgrade | 25 s smoke start in the upgrader | the before/after actuator diff and the structured migrator parse |
 | U4 | **Reviewer-capacity-aware delivery** (recipe-only PRs auto-mergeable on green, LLM-touched PRs sized under 5 files for humans, sampled second review) | Google throttled generation to reviewer throughput; Adyen added meta-review; Copilot coding agent has the lowest merge rate (43 %) with large PRs | COMMIT POINT separation of recipe and manual commits | recipe-touched vs LLM-touched file tracking, PR sizing, auto-merge policy |
 | U5 | **Published success metrics per campaign** (merged unchanged / merged with edits / rejected / reverted in 30 days / post-merge CI health / recipe-vs-LLM share / credits per merged PR) | no vendor publishes acceptance rates for Java upgrades; Google 74-87 % and Adyen 70 % are the only honest numbers | hooks ledger idea, usage-metrics API fields exist | the collector, the dashboard, and the feedback loop that disables low-success patterns |
-| U6 | **LLM writes the recipe, the recipe writes the code**: repeated fixes become OpenRewrite or Refaster recipes with tests, versioned in an internal Apache-2.0 catalogue | Moderne `create-recipe` skill; EM-Assist (76 % hallucinated proposals filtered by a deterministic engine); immunity to MSAL / Code Genome licensing drift | `rewrite.yml` bundles | the recipe-authoring agent and the internal recipe repository |
+| U6 | **LLM writes the recipe, the recipe writes the code**: repeated fixes become OpenRewrite or Refaster recipes with tests, versioned in an internal Apache-2.0 catalogue; the solved-example store's success rates decide when a fix is promoted (closed-loop distillation: Kai has the signal, Moderne has the authoring skill, nobody wires them together) | Moderne `create-recipe` skill; EM-Assist (76 % hallucinated proposals filtered by a deterministic engine); immunity to MSAL / Code Genome licensing drift | `rewrite.yml` bundles | the recipe-authoring agent, the promotion rule, and the internal recipe repository |
+| U7 | **Lock-in-free enterprise fit**: multi-module Gradle including Kotlin DSL, corporate Nexus/Artifactory, pinned Apache-2.0 recipes, existing Copilot seats, any JetBrains or VS Code client | Copilot modernization: no Kotlin DSL, one project at a time, IntelliJ on Windows/macOS only; AWS Transform: Maven only, 55-minute cap, no private network; Moderne: $250K-$5M and credentialed recipe distribution | already true of the pack | keep it true: every feature below must work offline against a mirror and on Groovy and Kotlin DSL |
 
 ## 3. Design principles (binding for every feature below)
 
@@ -60,6 +61,8 @@ COMMIT POINT; RATCHET = hard against a baseline; SOFT = input to judgment.
 | V8 | **Database gate**: Flyway/Liquibase `validate`, migrations applied on a Testcontainers database, `ddl-auto=validate` at test start, Liquibase `diff --format=json` empty; destructive-SQL linter on pending migrations | tool exit codes, JSON | HARD; destructive heuristic SOFT | M |
 | V9 | **Reproducible-build check**: two clean builds, jar checksums compared; proves a "no-op" refactor changed no bytecode | checksums | HARD | S |
 | V10 | **Agent-stop gate**: `agentStop` hook that blocks completion while compile, tests, or any enabled ratchet is red (with the platform's runaway guard) | all of the above | HARD | S |
+| V11 | **Fast inner loop**: compile only the changed modules and run only the tests that cover the changed classes (JaCoCo class-to-test map from V1, Maven `-amd`, Gradle `--tests`), full suite once at the end; cuts the cost of every fix iteration | JaCoCo map, build tool filters | SOFT for the loop, HARD at the end | M |
+| V12 | **Dependency-bump gate**: before accepting any version bump, run the affected tests, japicmp or Revapi on the module's public API, and a transitive CVE re-scan; reject downgrades and new CVEs | V6 + F3 + V11 | HARD | S |
 
 ### 4.2 Fact engine (U2)
 
@@ -81,6 +84,7 @@ COMMIT POINT; RATCHET = hard against a baseline; SOFT = input to judgment.
 | C3 | **recipe-author agent**: for any pattern seen more than N times in a task, writes a declarative YAML or Refaster recipe with `RewriteTest` before/after cases, runs the tests, applies across the repository; recipes land in an internal catalogue repository | OpenRewrite test harness | L |
 | C4 | **Dependency hygiene actions**: `buildHealth` / `dependency:analyze` after every bump; `fixDependencies` and nebula.lint as safe auto-changes; lockfile diff emitted as a fact at every COMMIT POINT | plugin reports | S |
 | C5 | **Solved-example memory with success rates**: (error signature or rule violation -> accepted diff) stored in the repo or fleet store; top-k injected as examples; patterns whose success rate drops are disabled (Konveyor Kai Solution Server model) | JSON store + metrics | M |
+| C6 | **Recipe promotion rule**: when a solved example has the same AST diff shape across N repositories with a success rate above threshold, C3 is invoked to author a recipe and the LLM step is replaced by it; the promotion and its evidence are recorded in the catalogue | C5 signal + C3 authoring | M |
 
 ### 4.4 Platform integration (Copilot capabilities)
 
@@ -129,8 +133,11 @@ review enforcement, P6 MCP allow-list, M2 dashboard, M3 regression harness, V8 d
 Outcome: the pack runs without a laptop, and U5 numbers exist.
 
 **Phase 4, fleet and learning (6-10 weeks).** X1-X4 campaign and rollout controls, P4 cloud agent bulk runs, C5
-solved-example memory, M4 pattern retirement, C3 recipe-author agent, F6 Konveyor/Transformer. Outcome: U4 and U6;
-one change across many repositories with canaries, sized PRs, and a feedback loop.
+solved-example memory, C6 recipe promotion, M4 pattern retirement, C3 recipe-author agent, F6 Konveyor/Transformer.
+Outcome: U4 and U6; one change across many repositories with canaries, sized PRs, and a feedback loop that turns
+repeated LLM fixes into recipes.
+
+V11 (fast inner loop) and V12 (dependency-bump gate) slot into Phase 2 alongside the other ratchets.
 
 ## 6. What to measure from day one
 
