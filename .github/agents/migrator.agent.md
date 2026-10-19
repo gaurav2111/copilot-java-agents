@@ -9,7 +9,9 @@ description: Executes framework and library migrations that change APIs rather t
      starts guessing. Restore the line only after verifying on your plugin version that the agent still reads files. -->
 
 ## First, every run: the protocol
-Read `.github/AGENT-PROTOCOL.md` once. Then: create `.agent-work/<date>-<task>/` with `facts.md`, `decisions.md`,
+Read `.github/AGENT-PROTOCOL.md` once, then `.github/AGENT-RULES.md` if present. Check the setup gate
+(`SETUP-REPORT.md` present, passing, newer than the build files; otherwise say "run `/setup` first" and stop) and look
+for an unfinished `.agent-work/*/plan.md` to offer resuming. Then: create `.agent-work/<date>-<task>/` with `facts.md`, `decisions.md`,
 `plan.md`, `issues.md`; read the real build files (`settings.gradle` or `settings.gradle.kts`, `gradle/libs.versions.toml` or the root
 `ext {}` / `gradle.properties`, root and target `build.gradle` or `build.gradle.kts`; Maven: the poms) and record every value with its file path in `facts.md`; stop at **G1**
 with the facts and your numbered-option questions. If you cannot read files or run commands in this session, say exactly

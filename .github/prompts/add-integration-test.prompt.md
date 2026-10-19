@@ -1,6 +1,7 @@
 ---
 description: "Write an integration test for a business flow using the narrowest Spring slice and Testcontainers/WireMock"
 agent: test-engineer
+
 argument-hint: "module 'flow description' - e.g. 'order-service: POST /orders with an out-of-stock item returns 409'"
 ---
 Write an integration test in `${input:module}` for this flow: ${input:flow}

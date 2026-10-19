@@ -11,6 +11,11 @@ an untested class) or any small internal Gradle repository with the pack copied 
 - Settings > Plugins > GitHub Copilot: note the version. Custom agents need 1.6.1+, hooks 1.10.0+.
 - Work on a branch. Agents never run git write commands; you commit at the COMMIT POINTs they mark.
 
+## Stage 0: setup check (5 min)
+| # | Do | Expect | If not |
+|---|---|---|---|
+| 0 | Terminal: `scripts/setup-check.sh` (or `/setup` in Copilot) | `PASS` or `PASS WITH WARNINGS`, `SETUP-REPORT.md` written, a proposed stack block at its end | Each FAIL line says what to run or change. Offline cache misses are one-time `BUILD_OFFLINE=""` commands. |
+
 ## Stage 1: the files load (10 min)
 | # | Do | Expect | If not |
 |---|---|---|---|
@@ -37,6 +42,8 @@ an untested class) or any small internal Gradle repository with the pack copied 
 | 13 | New chat: `/document :order-service | readme` | Candidate file list with read budget, waits, then `order-service/README.md` with Mermaid diagrams, Sources / Not covered / Unverified sections, no `inventory.example.internal` value copied | More than 15 files read. Config values or hostnames in the doc. |
 | 14 | New chat: `/add-tests order-service PricingEngine` | Names the exemplar (`OrderServiceTest`), lists behaviours as test names, waits, writes `PricingEngineTest`, runs only it, reports before/after coverage, marks COMMIT POINT | Any edit under `src/main`. `@Disabled`. New test dependency. Mockito introduced (not in the exemplar). |
 | 15 | Watch the per-turn credit indicator during 13 and 14 | Note the numbers; this is the token baseline | |
+| 15a | Add `- path: <some-module>/**` to `.github/AGENT-RULES.md`, ask any agent to edit a file there | Stops, names the boundary; the hook blocks the edit even if the agent tries | Agent edits anyway and no BLOCKED message: hooks inactive (see 12). |
+| 15b | Close a chat mid-task, open a new one on a different model, `/resume .agent-work/<folder>` | Three-line status from the Handoff block, "continued on <model>" appended to decisions.md, last verification re-run, continues at the next step | |
 
 ## Stage 4: one real task end to end (an afternoon)
 | # | Do | Expect |

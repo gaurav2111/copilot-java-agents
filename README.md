@@ -29,7 +29,8 @@ default**; the same scripts and agents work on Maven repositories (the scripts d
   prompts/                     slash commands that pre-select the agent and carry per-run inputs
   hooks/
     hooks.json + guard.sh      preToolUse: blocks ALL git writes, installs/downloads, publish/deploy, recursive rm, infra
-  AGENT-PROTOCOL.md            facts/decisions/plan/issues files, gates G0-G4, question format, never-do list
+  AGENT-PROTOCOL.md            facts/decisions/plan/issues files, gates G0-G4, question format, never-do list, handoff/resume
+  AGENT-RULES.md               team-owned: hard boundaries (path/command lines enforced by the hook), standing instructions
 rewrite.yml                    composite OpenRewrite recipes named for your org
 scripts/
   lib.sh                       build-tool detection (Gradle default, Maven fallback), shared helpers
@@ -37,7 +38,9 @@ scripts/
   test-summary.sh              run tests -> counts + failing test names from JUnit XML
   dep-path.sh                  how one artifact reaches each project (Gradle dependencyInsight / Maven tree)
   dep-tree.sh                  dump every project's runtime tree into one file for CveTriage
-  jdk-check.sh                 jdeps --jdk-internals, jdeprscan --for-removal, trouble-spot grep for an upgrade target
+  jdk-check.sh                 jdeps --jdk-internals, jdeprscan --for-removal (with the module classpath), trouble-spot grep
+  classpath-init.gradle        init script giving jdk-check the runtime classpath without build changes
+  setup-check.sh               validates prerequisites + every script against the repo; writes SETUP-REPORT.md
   rewrite.sh                   OpenRewrite dry run/apply without touching the build; prints patch summary
   rewrite-init.gradle          Gradle init script used by rewrite.sh (no build.gradle changes)
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
@@ -53,6 +56,9 @@ JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts 
 
 ## Setup (per repository)
 
+0. Run `scripts/setup-check.sh` (or `/setup` in Copilot) after copying the pack. It validates every prerequisite and
+   every script against the repository, writes `SETUP-REPORT.md`, and proposes the stack block. Agents refuse to start
+   a task until a passing, current report exists. Rerun it after any build-file change; it is the pack's regression test.
 1. Copy `.github/`, `rewrite.yml`, `scripts/` to the repo root. `chmod +x scripts/*.sh`. On Windows use Git Bash or WSL for the shell scripts; the two Java tools run anywhere.
 2. Fill the `<!-- FILL IN -->` block in `copilot-instructions.md`: Java and framework versions, project map, test stack. Replace `com.<org>` in `rewrite.yml` and the agents with your group id.
 3. Gradle prerequisites the scripts assume: wrapper present, JaCoCo XML report enabled (`tasks.jacocoTestReport { reports { xml.required = true } }`), integration tests in an `integrationTest` task if you have them, versions in `gradle/libs.versions.toml`. Maven: wrapper, JaCoCo plugin with `report` goal, failsafe for `*IT`.
@@ -63,12 +69,16 @@ JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts 
 
 ## How a task flows (protocol in `.github/AGENT-PROTOCOL.md`)
 
-Every agent run keeps four small files under `.agent-work/<date>-<task>/`: `facts.md` (every value with its source),
+Three rule strengths: hard boundaries and standing instructions in `.github/AGENT-RULES.md` (team-owned; `path:` and
+`command:` lines are enforced by the hook, not only read), and per-task decisions in `decisions.md`. Every agent run keeps
+four small files under `.agent-work/<date>-<task>/`: `facts.md` (every value with its source),
 `decisions.md` (options offered, answer, who decided), `plan.md` (steps with status, verification result, COMMIT POINTs;
 this is the progress log), `issues.md` (everything found but out of scope). Gates: G0 preflight read, G1 confirm facts
 and ask numbered-option questions, G2 confirm plan, G3 each commit point, G4 report assembled from the files. Agents run
-no git write commands and never download or install anything; the user commits at the commit points. A new chat continues
-any task with `/resume .agent-work/<folder>`, which is also the token-efficient way to run long tasks.
+no git write commands and never download or install anything; the user commits at the commit points. `plan.md` ends with a Handoff
+block (status, last result, next action, open questions, model/client/date) rewritten after every step, so a new chat
+or a different model continues with `/resume .agent-work/<folder>`; agents also offer to resume any unfinished task at
+the start of a run. Model changes are recorded in `decisions.md`. This is the token-efficient way to run long tasks.
 
 
 ```

@@ -4,7 +4,20 @@
 # Verify on your plugin version: run a chat that asks the agent to `git push --force` and confirm it is blocked.
 set -u
 INPUT=$(cat)
-# Only inspect shell-type tools; let everything else through.
+# --- team rules: path boundaries apply to every non-read tool (edit, create, shell) ---
+RULES=".github/AGENT-RULES.md"
+if [ -f "$RULES" ] && ! echo "$INPUT" | grep -qiE '"toolName"\s*:\s*"(read|view|get|search|grep|glob|find|list|file_search|read_file|readFile|codebase)[^"]*"'; then
+  while IFS= read -r line; do
+    g="${line#- path: }"; g="${g%%#*}"; g="$(echo "$g" | sed 's/[[:space:]]*$//')"
+    # glob -> regex: escape dots, ** -> .*, * -> [^/]*
+    rx="$(printf '%s' "$g" | sed -e 's/\./\\./g' -e 's#\*\*#__DS__#g' -e 's#\*#[^/]*#g' -e 's#__DS__#.*#g')"
+    if echo "$INPUT" | grep -qE -e "(^|[\"'[:space:]/=])${rx}"; then
+      echo "BLOCKED by AGENT-RULES.md hard boundary (path: $g). Agents do not modify this path." >&2; exit 2
+    fi
+  done < <(grep -E '^- path: ' "$RULES")
+fi
+
+# Only inspect shell-type tools below; let everything else through.
 echo "$INPUT" | grep -qiE '"toolName"\s*:\s*"(execute|bash|shell|powershell|run_in_terminal|runInTerminal)[^"]*"' || exit 0
 
 DENY_PATTERNS=(
@@ -31,4 +44,18 @@ for p in "${DENY_PATTERNS[@]}"; do
     exit 2
   fi
 done
+
+# --- team rules from .github/AGENT-RULES.md (section 1 machine-readable lines) ---
+RULES=".github/AGENT-RULES.md"
+if [ -f "$RULES" ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      "- command: "*)
+        rx="${line#- command: }"; rx="${rx%%#*}"; rx="$(echo "$rx" | sed 's/[[:space:]]*$//')"
+        if echo "$INPUT" | grep -qiE -e "$rx"; then
+          echo "BLOCKED by AGENT-RULES.md hard boundary (command: $rx)." >&2; exit 2
+        fi;;
+    esac
+  done < <(grep -E '^- command: ' "$RULES")
+fi
 exit 0

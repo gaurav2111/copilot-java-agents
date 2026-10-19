@@ -10,6 +10,16 @@ record, and any task can be resumed in a fresh chat from four small files instea
 A fact that did not come from one of these does not exist. The words "assume", "likely", "typically", "should be" and
 "must be verified" are not allowed in `facts.md`; if you are tempted to write them, that item is a question for the user.
 
+## 1b. Team rules: `.github/AGENT-RULES.md`
+Read it after this file, every run, if it exists. Hard boundaries (section 1) end a step when they would be crossed; say
+which one. Standing instructions (section 2) become constraints in `facts.md` and steps or checks in `plan.md`. The
+agent never edits that file; proposing a new rule goes to `issues.md`.
+
+## 1c. Setup gate
+`SETUP-REPORT.md` at the repository root must exist with result PASS or PASS WITH WARNINGS, and be newer than the
+build files it validated (`settings.gradle*`, `build.gradle*`, `gradle/libs.versions.toml`, `pom.xml`). If it is
+missing or stale, say "run `/setup` first" and stop; do not start a task on an unvalidated repository.
+
 ## 2. Working folder: `.agent-work/<yyyy-mm-dd>-<task-slug>/`
 Create it at the start (`<task-slug>` = `upgrade-order-service-java21`, `cve-batch-oct`, `coverage-billing`). Four files, all Markdown, all short:
 
@@ -17,9 +27,19 @@ Create it at the start (`<task-slug>` = `upgrade-order-service-java21`, `cve-bat
 |---|---|---|
 | `facts.md` | Every fact used, one line each: `fact - source (path or command) - value` | Append-only. A fact without a source is deleted. |
 | `decisions.md` | Every choice point: question, options offered (with the recommended one marked), answer, who answered (user / agent-by-default-after-user-OK), one-line reason | Append-only. No decision is made silently; if the agent chose a default, that is written down too. |
-| `plan.md` | Numbered steps with `[ ]` / `[x]` / `[!]` (blocked), each with: what, tool (recipe / script / manual), verification command and its last result, commit point marker | Updated after **every** step. This file is the progress log and the resume point. |
+| `plan.md` | Numbered steps with `[ ]` / `[x]` / `[!]` (blocked), each with: what, tool (recipe / script / manual), verification command and its last result, commit point marker; ends with the **Handoff** block (below) | Updated after **every** step. This file is the progress log and the resume point. |
 | `issues.md` | Anything found but not in scope: pre-existing failures, debt, risks, out-of-scope modules, odd code, questions for owners. Severity, where, why it matters, suggested owner | Append-only. Nothing is silently dropped. |
 
+The last section of `plan.md` is always a **Handoff** block, rewritten after every step so that a new chat, a different
+model, or a colleague can continue without the history:
+```
+## Handoff
+- Status: executing | waiting at G1/G2/G3 | DONE
+- Last closed step: 3 - result: "<one-line verification result>"
+- Next action: step 4 - "<exact command or edit>"
+- Open questions: none | Q5 ...
+- Session: model=<name as shown in the picker>, client=<IntelliJ Copilot x.y.z>, date=<yyyy-mm-dd>, by=<user>
+```
 At the end the standard report is assembled **from these files**, never written from memory. If the team does not want
 them committed, add `.agent-work/` to `.gitignore`; by default they travel with the branch so the reviewer sees the reasoning.
 
@@ -60,11 +80,17 @@ Every step in `plan.md` names the command that proves it and records the command
 closed. Preferred: `scripts/compile-errors.sh`, `scripts/test-summary.sh`, `scripts/dep-path.sh`, `scripts/jdk-check.sh`,
 `java scripts/CoverageGaps.java`, `java scripts/CveTriage.java`. "It compiles" without the script line is not a result.
 
-## 7. Resuming
-A fresh chat with `/resume <folder>` (or the agent itself after a long run) reads the four files, re-runs the
-verification command of the last `[x]` step to confirm the tree still matches, and continues at the first `[ ]` or `[!]`
-step. It does not re-read the codebase beyond what the next step needs. This is the intended way to work on long tasks:
-one chat per two or three steps, then resume.
+## 7. Resuming, new chats, model changes
+- **Start of every agent run**: look for `.agent-work/*/plan.md` whose Handoff status is not DONE. If one exists and the
+  user's request matches it or the request is empty, offer to resume it before anything else; if several exist, list them.
+- **Resume** (`/resume <folder>`, or the offer above): read the Handoff block first, then the four files; re-run the
+  verification command of the last `[x]` step to confirm the tree still matches (if it does not, stop and show the
+  difference); continue at the first `[ ]` or `[!]` step. Do not re-read the codebase beyond what the next step needs.
+- **Model or client change**: if the model or client in the Handoff block differs from the current one, append a line to
+  `decisions.md` ("continued on <model> from step n") and update the Session line. Verification does not change: the
+  same commands prove the same steps whatever the model.
+- **Long tasks** are meant to span several short chats: two or three steps per chat, then resume. The files are the
+  memory; the chat is disposable.
 
 ## 8. Token discipline inside this protocol
 - `facts.md` is for values, not file contents. Never paste a build file into it; paste the line.
