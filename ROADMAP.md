@@ -62,7 +62,30 @@ we will know, and we can prove the value.
 | **Repeated fixes become recipes** | When the model fixes the same thing by hand in several repositories, we turn it into a tested OpenRewrite recipe, so the next repository needs no AI. Our own recipe catalogue, free licence. | Moderne has the pieces but does not connect them. |
 | **No lock-in** | Works on Kotlin and Groovy build files, behind a corporate mirror, on the Copilot seats you already pay for. | Copilot's own tool: no Kotlin DSL, one repo at a time. AWS: Maven only. Moderne: six-figure contracts. |
 
-## 4. The plan, in four phases
+## 4. Is this better than just using OpenRewrite?
+
+OpenRewrite is one tool inside the pack, not an alternative to it. It applies a known rule to code, renaming a
+package, replacing an API, bumping a version, and it does that perfectly, everywhere, every time. That is why we use
+it for every change that can be written as a rule. What it does not do is where the rest of the pack earns its place.
+
+| OpenRewrite alone | The pack |
+|---|---|
+| Does not decide what to run. Someone must know which recipes, in which order, with which local exceptions. | The planner and agent tables hold that knowledge; the team rules file adds the local exceptions. |
+| Does not handle what the rule missed. Its own documentation says recipes favour correctness over completeness, so migrations stay partial. | The agent fixes the residue one cause at a time, with a compile check after each. |
+| Does not verify. It reports "changed 14 files" but runs no tests, starts no app, rescans no CVE. If a dependency fails to resolve it silently skips files and still reports success, the top failure mode in the field. | Baseline snapshot, missing-type gate, cannot-finish check, app startup comparison. |
+| Does not write tests or documentation, and does not triage a scanner report. | Three of the six agents do work OpenRewrite cannot. |
+| Does not run itself: coordinates, directory, memory, reading the patch, applying, committing. | The script runs it from the root with pinned versions; the setup check proves the environment first. |
+| Does not learn. The same hand-fix in five repositories goes unnoticed. | Phase 4 turns repeated fixes into new recipes so the sixth repository needs no AI. |
+
+A fair summary: OpenRewrite answers "how do I apply this known change everywhere". The pack answers "what change does
+this repository need, what did the recipe leave behind, is the result actually correct, and what did it cost".
+
+Moderne, the company behind OpenRewrite, sells exactly this layer on top of it: planning, multi-repository runs, fact
+tables, verification. Their price starts in the six figures and their recipes are moving to a licensed distribution.
+The pack reproduces most of that layer on Copilot seats we already have, plus the parts they do not do: test writing,
+documentation, runtime checks, and the guards against an agent cheating.
+
+## 5. The plan, in four phases
 
 ### Phase 1: make cheating impossible (4 to 6 weeks)
 
@@ -117,7 +140,7 @@ The most valuable phase. Everything else builds on it.
 | Promote fixes to recipes | When the same fix succeeded in several repositories, author a recipe with tests and drop the AI step for that pattern. |
 | Cloud runs for bulk work | Copilot's cloud agent with a pre-installed JDK and access to the corporate mirror, for large batches. |
 
-## 5. What we measure from day one
+## 6. What we measure from day one
 
 - **Merged untouched, merged with edits, rejected.** The honest acceptance rate.
 - **Reverted within 30 days, and CI failures after merge.** Green on the day is not enough; Spotify learned that the hard way.
@@ -125,7 +148,7 @@ The most valuable phase. Everything else builds on it.
 - **Cost per merged change**, per agent, per model.
 - **Which check caught the failure.** Tells us which cheap check to add next.
 
-## 6. Risks, and what we do about them
+## 7. Risks, and what we do about them
 
 - **The IntelliJ plugin does not support every hook yet.** We run the pack through Copilot's CLI provider inside IntelliJ, and every gate also runs in CI, so the IDE is never the only line of defence.
 - **OpenRewrite licensing is shifting.** Some recipes moved to a source-available licence and off Maven Central. We pin versions, mirror them, and build our own catalogue of free-licence recipes over time.
@@ -133,7 +156,7 @@ The most valuable phase. Everything else builds on it.
 - **Reviewers get tired.** Small pull requests, auto-merge for recipe-only changes, a second reviewer on a sample.
 - **Building too much.** Each feature ships only after the number it is supposed to improve is being measured. Phase 1 before anything else.
 
-## 7. Decisions we need
+## 8. Decisions we need
 
 1. Approve Phase 1 and name an owner.
 2. Which code analysers the repositories already run, so we wrap those and not new ones.
@@ -142,7 +165,7 @@ The most valuable phase. Everything else builds on it.
 5. The legal view on the source-available OpenRewrite recipes, and whether a Moderne subscription is on the table.
 6. Three canary repositories for Phase 4, and who holds the stop button.
 
-## 8. Where the detail is
+## 9. Where the detail is
 
 The research behind this document, with sources: a tooling survey of about 40 Java tools with their output formats and
 commands; a survey of Copilot platform features (hooks, skills, CLI, cloud agent, code review, metrics, governance); and
