@@ -33,7 +33,7 @@ They say "done" at 95 percent. They copy a fix from the internet instead of unde
 publicly about their own tool. A Cursor audit found most "successful" benchmark fixes were copied, not derived.
 Google reverted unwanted edits in most of their AI-generated changes.
 
-**Finding 2: the only fix that works is checking with a tool, never with the agent's own word.** Every company that
+**Finding 2: the only fix that works is checking with a tool, never with the agent's own word.** Everyone who
 does this at scale uses the same shape: find the places to change with a tool, make the change with a recipe or the
 model, then run a ladder of checks from cheap to expensive, then let a human review a small change. That is what the
 picture above shows.
@@ -79,7 +79,7 @@ it for every change that can be written as a rule. What it does not do is where 
 A fair summary: OpenRewrite answers "how do I apply this known change everywhere". The pack answers "what change does
 this repository need, what did the recipe leave behind, is the result actually correct, and what did it cost".
 
-Moderne, the company behind OpenRewrite, sells exactly this layer on top of it: planning, multi-repository runs, fact
+Moderne, the maker of OpenRewrite, sells exactly this layer on top of it: planning, multi-repository runs, fact
 tables, verification. Their price starts in the six figures and their recipes are moving to a licensed distribution.
 The pack reproduces most of that layer on Copilot seats we already have, plus the parts they do not do: test writing,
 documentation, runtime checks, and the guards against an agent cheating.
@@ -120,7 +120,7 @@ The most valuable phase. Everything else builds on it.
 
 | What | In plain words |
 |---|---|
-| Scheduled runs | Copilot CLI inside GitHub Actions, billed to the company pool, with a spending cap per run. Nightly cleanup, weekly inventory. |
+| Scheduled runs | Copilot CLI inside GitHub Actions, billed to the shared pool, with a spending cap per run. Nightly cleanup, weekly inventory. |
 | Code review enforcement | Copilot code review reads our rules and reviews every pull request an agent opens. |
 | Allowed tools only | A short list of approved integrations (GitHub, SonarQube read-only), nothing else attachable. |
 | Dashboard | Weekly job that publishes cost per merged change, merged untouched, reverted within 30 days, per agent and model. |
@@ -159,7 +159,7 @@ The most valuable phase. Everything else builds on it.
 
 1. Approve Phase 1 and name an owner.
 2. Which code analysers the repositories already run, so we wrap those and not new ones.
-3. Whether company policy allows Copilot CLI to run in GitHub Actions on the company bill.
+3. Whether policy allows Copilot CLI to run in GitHub Actions on the shared bill.
 4. A bot account for unattended runs, so cost can be attributed.
 5. The legal view on the source-available OpenRewrite recipes, and whether a Moderne subscription is on the table.
 6. Three canary repositories for Phase 4, and who holds the stop button.

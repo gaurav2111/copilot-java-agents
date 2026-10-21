@@ -1,4 +1,4 @@
-# Copilot agents for enterprise Java maintenance
+# Copilot agents for Java maintenance
 
 Drop-in `.github/` customisation for GitHub Copilot (IntelliJ / VS Code / coding agent) covering Java version
 upgrades, framework upgrades and migrations, vulnerability fixes, test coverage work, and documentation. **Gradle is the
@@ -31,7 +31,7 @@ default**; the same scripts and agents work on Maven repositories (the scripts d
     hooks.json + guard.sh      preToolUse: blocks ALL git writes, installs/downloads, publish/deploy, recursive rm, infra
   AGENT-PROTOCOL.md            facts/decisions/plan/issues files, gates G0-G4, question format, never-do list, handoff/resume
   AGENT-RULES.md               team-owned: hard boundaries (path/command lines enforced by the hook), standing instructions
-rewrite.yml                    composite OpenRewrite recipes named for your org
+rewrite.yml                    composite OpenRewrite recipe bundles (prefix `com.example`, rename to taste)
 scripts/
   lib.sh                       build-tool detection (Gradle default, Maven fallback), shared helpers
   compile-errors.sh            compile -> distinct errors only, capped
@@ -60,7 +60,7 @@ JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts 
    every script against the repository, writes `SETUP-REPORT.md`, and proposes the stack block. Agents refuse to start
    a task until a passing, current report exists. Rerun it after any build-file change; it is the pack's regression test.
 1. Copy `.github/`, `rewrite.yml`, `scripts/` to the repo root. `chmod +x scripts/*.sh`. On Windows use Git Bash or WSL for the shell scripts; the two Java tools run anywhere.
-2. Fill the `<!-- FILL IN -->` block in `copilot-instructions.md`: Java and framework versions, project map, test stack. Replace `com.example` in `rewrite.yml` and the agents with your group id.
+2. Fill the `<!-- FILL IN -->` block in `copilot-instructions.md`: Java and framework versions, project map, test stack. Replace `com.example` in `rewrite.yml` and the agents with your own group id.
 3. Gradle prerequisites the scripts assume: wrapper present, JaCoCo XML report enabled (`tasks.jacocoTestReport { reports { xml.required = true } }`), integration tests in an `integrationTest` task if you have them, versions in `gradle/libs.versions.toml`. Maven: wrapper, JaCoCo plugin with `report` goal, failsafe for `*IT`.
 4. Pin OpenRewrite versions via `REWRITE_PLUGIN_VERSION` / `REWRITE_RECIPE_VERSION` (defaults are the last public versions, see table below). The Gradle path uses `scripts/rewrite-init.gradle`, which must not collide with an existing `org.openrewrite.rewrite` plugin application in the build.
 5. Make sure your artifact mirror (Nexus/Artifactory) proxies the Gradle Plugin Portal and Maven Central for `org.openrewrite.*`. OpenRewrite must also resolve **every** project dependency to parse sources; a module that only builds inside CI will not parse locally.
@@ -116,11 +116,11 @@ pooled, no carry-over). So the bill is literally tokens, and the table above is 
 shows a per-turn credit indicator since June 2026; watch it on the first few runs to calibrate. Cheapest practical
 models for mechanical loops at the time of writing: Claude Haiku 5.5, GPT-5 mini. Reasoning-heavy phases (planner,
 migrator, integration tests): Claude Sonnet 5.x or GPT-5.4 class. Set `model:` per agent once you know which models
-your enterprise has enabled; an unknown model name falls back to the default.
+are enabled for you; an unknown model name falls back to the default.
 
 ## OpenRewrite supply and licensing (verified 2026-10-16; read before the first run)
 
-Three things changed in 2026 that an enterprise must settle before agents rely on recipes:
+Three things changed in 2026 that must be settled before agents rely on recipes:
 
 1. **Artifacts left Maven Central.** OpenRewrite stopped publishing to Central in August 2026 (Sonatype publishing
    limits). New releases come from the authenticated "Code Genome Project" repository
@@ -200,7 +200,7 @@ enforced in the agent text and verified by `git status`); prompts use
 `agent:` (not the legacy `mode:`); no `handoffs:`; the hook is written in the Copilot `version: 1` format. `argument-hint`
 in prompt files is VS Code-only and harmless elsewhere. Agent bodies stay far under the 30,000-character limit.
 
-Enterprise admin note: while a JetBrains feature was in preview, Business/Enterprise tenants needed the "Editor preview
+Admin note: while a JetBrains feature was in preview, tenants on the Business or Enterprise plans needed the "Editor preview
 features" policy enabled. If agents or hooks do not appear, ask the Copilot admin before debugging the files.
 
 ### Overlap with "GitHub Copilot modernization" for Java
@@ -233,5 +233,5 @@ agent file's content as the first message of a new chat. Same instructions, one 
 5. Whether `.github/` can be committed to every repo or must live in the org-level `.github` / `.github-private` repository (org agents go in `/agents/NAME.md` there; repo files override org files).
 6. Which Copilot models are enabled; set `model:` per agent accordingly (planner strong, upgrader/security-fixer cheaper, test-engineer strong for ITs).
 7. Nexus/Artifactory: can the Code Genome repository be proxied (token-based), or do we stay on the August-2026 Central versions? What heap can developer machines give OpenRewrite (8g default in `rewrite.sh`)?
-8. Legal: confirm MSAL use on company code is acceptable, and whether a Moderne subscription exists (unlocks `DependencyVulnerabilityCheck`, security recipes, Spring Boot 4.1+ composites, and the CLI for private repos).
-9. If the company prefers the vendor route: the free "GitHub Copilot modernization" IntelliJ plugin covers Java and Spring Boot upgrades end to end; these agents then handle residue, migrations, CVEs, and tests.
+8. Legal: confirm MSAL use on your own code is acceptable, and whether a Moderne subscription exists (unlocks `DependencyVulnerabilityCheck`, security recipes, Spring Boot 4.1+ composites, and the CLI for private repos).
+9. If the vendor route is preferred: the free "GitHub Copilot modernization" IntelliJ plugin covers Java and Spring Boot upgrades end to end; these agents then handle residue, migrations, CVEs, and tests.

@@ -1,6 +1,7 @@
 # Repository-local OpenRewrite recipes. Activated by name through scripts/rewrite.sh, e.g.
 #   scripts/rewrite.sh com.example.SpringBoot3Upgrade org.openrewrite.recipe:rewrite-spring,org.openrewrite.recipe:rewrite-migrate-java
 # Composite recipes keep the agent's job to "run one name". Add options here, not on the command line.
+# The `com.example` prefix is a placeholder: rename it to your own group id.
 # Recipe catalog: https://docs.moderne.io/user-documentation/recipes/recipe-catalog (docs.openrewrite.org pages moved there).
 # Licence per artifact: see README "OpenRewrite supply and licensing". Names verified 2026-10-16.
 ---
@@ -61,7 +62,7 @@ name: com.example.SecurityHygiene
 displayName: "code-level security hygiene (REQUIRES a Moderne subscription)"
 description: >
   org.openrewrite.recipe:rewrite-java-security is under the Moderne Proprietary License. Delete this entry if the
-  organisation has no subscription; the security-fixer agent then works manually. Behaviour-preserving fixes only.
+  there is no subscription; the security-fixer agent then works manually. Behaviour-preserving fixes only.
 recipeList:
   - org.openrewrite.java.security.JavaSecurityBestPractices
   - org.openrewrite.java.security.search.FindHardcodedAuthenticationCredentials   # report only; review the data table

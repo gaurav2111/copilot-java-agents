@@ -21,7 +21,7 @@ repositories stay in a known-good state between upgrades; upgrade planning start
 
 ## 3. Recipe tiers
 
-Licence: A = Apache 2.0, M = Moderne Source Available (company may run on its own code; legal sign-off once),
+Licence: A = Apache 2.0, M = Moderne Source Available (may be run on your own code; legal sign-off once),
 P = Moderne Proprietary (subscription). Artifact group is `org.openrewrite.recipe` unless stated.
 
 ### Tier 1: hygiene, run repeatedly on every repository
@@ -80,7 +80,7 @@ Decision needed: is the subscription worth it for recurring security findings? (
 
 ## 5. Governance rules
 
-- Every recipe choice is a named bundle in `rewrite.yml` under the organisation's prefix; agents and CI run bundle names, not raw recipe lists.
+- Every recipe choice is a named bundle in `rewrite.yml` under one prefix (`com.example` by default); agents and CI run bundle names, not raw recipe lists.
 - Artifact versions pinned (`REWRITE_RECIPE_VERSION`), bumped deliberately, re-verified on the reference repository.
 - A bundle is dry-run on the reference repository and its patch reviewed before it is allowed in CI or in an agent table.
 - Recipe commits contain only recipe output. Manual residue is a separate commit. Syntax modernisation is a separate PR from a version upgrade.
@@ -94,7 +94,7 @@ Decision needed: is the subscription worth it for recurring security findings? (
 |---|---|---|
 | Mirror proxies Gradle Plugin Portal + Maven Central for `org.openrewrite` | works (first online run succeeded 2026-10-19) | |
 | Mirror proxies Code Genome repository for post-August-2026 versions | not requested; pins stay on 7.39.0 / 6.46.1 and last Central recipe versions | |
-| Legal sign-off for MSAL recipes on company code | open | |
+| Legal sign-off for MSAL recipes on our own code | open | |
 | Decision on Moderne subscription (Tier 5) | open | |
 | JaCoCo XML enabled, `integrationTest` task naming, catalog or `ext{}` conventions documented per repository | per repository | |
 
