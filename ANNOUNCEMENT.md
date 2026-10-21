@@ -51,6 +51,52 @@ Those are now one shared protocol every agent reads, with four work files per ta
 Tested end to end on a sample project with planted flaws, which doubles as the regression test for the pack; works on
 Gradle and Maven, on the Copilot seats we already have. Feedback welcome while it is still a draft.
 
+## OpenRewrite: how it is integrated and how we use it
+
+OpenRewrite applies a known rule to code: rename a package, replace an API, bump a version, migrate a test
+annotation. It does that on a type-resolved model of the whole build, so it never misses a usage and never breaks
+formatting. In the pack it is the first thing an agent reaches for whenever a change can be written as a rule; the
+model only handles what the recipe leaves behind.
+
+**How it is wired in**
+
+- `scripts/rewrite.sh` runs any recipe without touching the build files. On Gradle it uses an init script, on Maven the
+  plugin by coordinates, always from the repository root, always as a dry run unless `--apply` is passed. Versions are
+  pinned to the last ones available from public mirrors.
+- The output the agent sees is a per-module count of changed files, not the patch. It opens the patch only if a count
+  looks wrong. A failed resolution is reported loudly so an empty result is never mistaken for "nothing to do".
+- `rewrite.yml` holds our own bundles under the `com.example` prefix, so an agent runs one name instead of reasoning
+  about ten recipes: Java 21 upgrade (full, and a minimal variant without syntax modernisation), Spring Boot 3
+  upgrade, test stack modernisation (JUnit 4 to 5, Mockito 5, Hamcrest to AssertJ), dependency bump, post-migration
+  cleanup, and a security bundle marked optional because it needs a paid subscription.
+- Each agent carries a table mapping tasks to recipe names and artifacts, verified against the recipe jars, with the
+  licence of each artifact noted.
+
+**How a run goes**
+
+1. The agent picks the bundle for the hop from its table and dry-runs it: `scripts/rewrite.sh com.example.Java21UpgradeMinimal org.openrewrite.recipe:rewrite-migrate-java`.
+2. It shows the per-module counts and waits for a go.
+3. It applies, checks the diff stat, and marks a commit point. That commit contains only recipe output; manual edits
+   never mix into it, so a reviewer can trust it without reading every line.
+4. It compiles, groups any residue by cause, and fixes one cause per commit point.
+
+**Rules we follow with it**
+
+- Recipe commits and manual commits are kept apart. Syntax modernisation is a separate pull request from a version
+  upgrade.
+- Run from the root; never per module. Scope with preconditions in `rewrite.yml` when needed.
+- A dependency that fails to resolve makes recipes silently skip files, so the setup check and the dry-run output
+  both flag unresolved types.
+- Licences differ by artifact: the core and dependency recipes are Apache 2.0; the Java, Spring and testing recipes
+  are source-available and need a one-time legal check; the security recipes need a subscription and are not relied
+  on. Artifacts stopped publishing to Maven Central in August 2026, so versions are pinned and should be mirrored.
+- When the model edits the same thing in five files, that is a missing recipe. The roadmap turns such repeated fixes
+  into new bundles so the next repository needs no model at all.
+
+OpenRewrite is a component of the pack, not an alternative to it. It answers "how do I apply this known change
+everywhere"; the agents answer what change this repository needs, what the recipe left behind, whether the result is
+correct, and what it cost.
+
 ## What it can do today
 
 Type `/` in Copilot chat to see these. Each one picks the right agent and asks for what it needs.
