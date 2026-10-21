@@ -47,6 +47,43 @@ scripts/
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
 ```
 
+## What each piece does, and how you use it
+
+Copilot loads customisation files at different moments. The pack is split along those moments so that each request
+carries only what it needs, and so that rules live in one place each.
+
+| Piece | Loaded when | What it is for | How you use it |
+|---|---|---|---|
+| `.github/copilot-instructions.md` | every Copilot request in the repository | The facts every task needs: stack, project map, the commands to run, the hard rules, the report format | Fill the stack block once per repository. Keep it under 60 lines; everything in it costs tokens on every request, including trivial questions. |
+| `.github/instructions/*.instructions.md` | when the agent touches a file matching the `applyTo` glob | Conventions for one kind of file: production Java, tests, build files, documentation | Nothing to do; they load themselves. Add one when a folder has rules of its own (for example `applyTo: "**/kafka/**"`). |
+| `.github/agents/*.agent.md` | when you pick the agent in the chat mode picker, or a prompt selects it | The workflow for one kind of task: phases, stop points, which script or recipe to run, guardrails, report | Pick it from the mode picker, or let a prompt pick it. One task per chat. |
+| `.github/prompts/*.prompt.md` | when you type `/name` in the chat | A reusable one-line start for a task: it selects the agent and carries the inputs | Type `/upgrade-java order-service 21` or `/fix-cves findings.csv HIGH`. Type `/` alone to see the list. |
+| `.github/AGENT-PROTOCOL.md` | read once by every agent at the start of a run | How every agent works: facts with sources, the four work files per task, the five gates, numbered-option questions, what agents never do, how to resume | Nothing to do day to day. Change it when the way of working should change for all agents at once. |
+| `.github/AGENT-RULES.md` | read once by every agent after the protocol | Your team's rules: hard boundaries (paths and commands the agents never touch) and standing instructions (things they always do) | Edit it; the agents never do. `- path:` and `- command:` lines are also enforced by the hook. |
+| `.github/hooks/hooks.json` + `guard.sh` | before every tool call an agent makes | Mechanical enforcement the model cannot talk its way around: no git writes, no installs or downloads, no publish or deploy, no force push, plus the team's path and command boundaries | Nothing to do; it runs by itself. Test it once by asking an agent to run `git push --force` and watching it get blocked. |
+| `scripts/*` | when an agent (or you) runs them | Turn big outputs into small tables: compile errors only, test counts and failing names, how a dependency reaches the build, coverage gaps ranked, CVE triage, JDK compatibility, OpenRewrite dry runs | Run them from the repository root. They work on Gradle and Maven and detect which one you have. |
+| `rewrite.yml` | when `scripts/rewrite.sh` is given a bundle name | OpenRewrite recipe bundles with your organisation's choices baked in, so an agent runs one name instead of reasoning about ten recipes | Rename the `com.example` prefix. Add a bundle when a migration recurs. Dry-run every bundle on the example project before CI uses it. |
+| `scripts/setup-check.sh` and `/setup` | once after copying the pack, and after any build-file change | Validates every prerequisite and every script against this repository, writes `SETUP-REPORT.md`, proposes the stack block | Run it first. Agents refuse to start without a passing, current report. |
+
+### A task, end to end
+
+1. You type `/fix-cves findings.csv HIGH`. Copilot loads the always-on file, the prompt, and the security-fixer agent. Nothing else.
+2. The agent reads the protocol and the rules file, checks the setup report, and creates `.agent-work/<date>-<task>/` with four files.
+3. It runs `scripts/dep-tree.sh` and `java scripts/CveTriage.java`. What enters its context is a table of a few lines, not the dependency tree.
+4. It shows you the facts and the open questions as numbered options. You answer. It writes the plan and stops. You say go.
+5. It edits the version catalog. As soon as it touches a build file, `build.instructions.md` loads with the rules for that file. If it tried a `git commit`, the hook would block it.
+6. After each group it runs `scripts/dep-path.sh` and `scripts/compile-errors.sh`, ticks the step in `plan.md`, and marks a COMMIT POINT. You commit.
+7. It assembles the report from the four files. You paste it into the pull request.
+8. Next task: new chat. For a long task, close the chat and continue with `/resume .agent-work/<folder>`.
+
+### Where a new rule goes
+
+- Applies to every task in this repository: `copilot-instructions.md` if it is a fact or a command, `AGENT-RULES.md` if it is a boundary or a habit.
+- Applies to one kind of file: an `instructions/*.instructions.md` with the right `applyTo`.
+- Applies to one kind of task: that agent's file.
+- Must be impossible rather than discouraged: a `path:` or `command:` line in `AGENT-RULES.md`, or a pattern in `guard.sh`.
+- Is a decision for this task only: the agent records it in `decisions.md` when you answer at gate one.
+
 ## Testing the pack
 
 `TESTING.md` is the step-by-step checklist for IntelliJ (four stages, expected result per step). The sibling folder
