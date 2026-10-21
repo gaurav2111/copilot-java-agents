@@ -1,0 +1,20 @@
+[versions]
+# Deliberately dated: this project is a test bed for the Copilot agent pack (upgrade, CVE, migration, coverage).
+spring-boot = "2.7.18"          # brings snakeyaml 1.30 (CVE-2022-1471) and jackson-databind 2.13.5 (CVE-2023-35116)
+commons-text = "1.9"            # CVE-2022-42889
+guava = "30.1-jre"              # CVE-2023-2976
+junit4 = "4.13.2"               # legacy-reports still on JUnit 4 + Hamcrest (migration target)
+hamcrest = "2.2"
+jacoco = "0.8.12"
+
+[libraries]
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version = "1.1.6" }

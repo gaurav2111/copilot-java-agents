@@ -1,7 +1,6 @@
 # Roadmap: what we build next, and why
 
-Draft, 2026-10-19. For the team. Written in plain language on purpose; the detailed research behind every claim
-is listed at the end.
+Draft, 2026-10-19. For the team. Written in plain language on purpose; the sources behind the claims are listed at the end.
 
 ## 1. The idea in one picture
 
@@ -24,7 +23,7 @@ flowchart LR
 
 Everything new in this roadmap strengthens one box in that picture. Nothing in it is a smarter prompt.
 
-## 2. What we learned from the research
+## 2. What the evidence says
 
 We looked at three things: the tools that exist for Java, what Copilot itself can do beyond chat, and how the big
 players do this (Google, Moderne, AWS, Spotify, Netflix, Adyen, and a dozen smaller tools).
@@ -165,9 +164,13 @@ The most valuable phase. Everything else builds on it.
 5. The legal view on the source-available OpenRewrite recipes, and whether a Moderne subscription is on the table.
 6. Three canary repositories for Phase 4, and who holds the stop button.
 
-## 9. Where the detail is
+## 9. Sources
 
-The research behind this document, with sources: a tooling survey of about 40 Java tools with their output formats and
-commands; a survey of Copilot platform features (hooks, skills, CLI, cloud agent, code review, metrics, governance); and
-a landscape of 20 commercial and open-source systems with a capability matrix. They are long and technical; they are for
-whoever implements a feature, not for reading end to end. Ask for the one you need and it goes into `docs/research/`.
+The claims in this document rest on three surveys made while preparing it: a survey of about 40 Java tools with their
+output formats and commands, a survey of GitHub Copilot platform features (hooks, skills, CLI, cloud agent, code
+review, metrics, governance), and a landscape of 20 commercial and open-source modernisation systems with a capability
+matrix. They are long and technical and are meant for whoever implements a feature; the maintainers hold them and will
+add the relevant one under `docs/research/` on request. Public references named in the text: Google's two papers on
+LLM-assisted migrations, the Adyen and Spotify engineering posts on fleet-wide changes, the Netflix QCon talk on change
+automation, the AWS re:Invent session on code transformation, the Cursor audit of coding benchmarks, and the AIDev
+study of agent pull requests.

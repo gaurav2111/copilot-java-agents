@@ -1,0 +1,12 @@
+// Init script: adds a `printRuntimeClasspath` task to every Java project without touching build files.
+// Used by scripts/jdk-check.sh so jdeprscan/jdeps can resolve referenced classes.
+//   ./gradlew --offline -q -I scripts/classpath-init.gradle :order-service:printRuntimeClasspath
+allprojects {
+    afterEvaluate { p ->
+        if (p.plugins.hasPlugin('java')) {
+            p.tasks.register('printRuntimeClasspath') {
+                doLast { println p.sourceSets.main.runtimeClasspath.asPath }
+            }
+        }
+    }
+}

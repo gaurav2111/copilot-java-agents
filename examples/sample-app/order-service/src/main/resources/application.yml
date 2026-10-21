@@ -1,0 +1,6 @@
+server:
+  port: 8080
+acme:
+  order:
+    max-quantity: 50
+    inventory-url: http://inventory.example.internal   # property NAME is fine in docs; value must never be copied

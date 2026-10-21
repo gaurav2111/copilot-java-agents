@@ -50,7 +50,7 @@ scripts/
 ## Testing the pack
 
 `TESTING.md` is the step-by-step checklist for IntelliJ (four stages, expected result per step). The sibling folder
-`../sample-app/` is a throwaway Gradle multi-project with the pack installed and every flaw the agents target: Java 17
+`examples/sample-app/` is a throwaway Gradle multi-project with the pack installed and every flaw the agents target: Java 17
 bytecode without a toolchain, Spring Boot 2.7.18, four CVEs listed in `findings.csv`, a `javax.annotation` import, a
 JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts have been run against it successfully.
 

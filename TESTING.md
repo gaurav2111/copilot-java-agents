@@ -1,13 +1,13 @@
 # Testing the pack in IntelliJ with GitHub Copilot
 
-Four stages, cheapest first. Each step has an expected result and what a failure means. Use the `sample-app/` folder
-next to this pack (it has every flaw the agents target: old Java target, Spring Boot 2.7, four CVEs, a JUnit 4 module,
+Four stages, cheapest first. Each step has an expected result and what a failure means. Use `examples/sample-app/`
+in this repository (it has every flaw the agents target: old Java target, Spring Boot 2.7, four CVEs, a JUnit 4 module,
 an untested class) or any small internal Gradle repository with the pack copied in.
 
 ## Before you start
-- Copy `.github/`, `scripts/`, `rewrite.yml` to the repo root (already done in `sample-app/`). `chmod +x scripts/*.sh`.
+- Copy `.github/`, `scripts/`, `rewrite.yml` to the repo root (already done in `examples/sample-app/`). `chmod +x scripts/*.sh`.
   Windows: run the shell scripts from Git Bash or WSL; the two Java tools run anywhere with a JDK 11+.
-- Fill the stack block at the top of `.github/copilot-instructions.md` (done for `sample-app/`).
+- Fill the stack block at the top of `.github/copilot-instructions.md` (done for `examples/sample-app/`).
 - Settings > Plugins > GitHub Copilot: note the version. Custom agents need 1.6.1+, hooks 1.10.0+.
 - Work on a branch. Agents never run git write commands; you commit at the COMMIT POINTs they mark.
 
@@ -28,9 +28,9 @@ an untested class) or any small internal Gradle repository with the pack copied 
 | # | Command | Expect | If not |
 |---|---|---|---|
 | 5 | `scripts/compile-errors.sh order-service` | `COMPILE OK (order-service) [gradle]` | `[maven]` on a Gradle repo: set `BUILD_TOOL=gradle`. Offline failure: run once with `BUILD_OFFLINE=""`. |
-| 6 | `scripts/test-summary.sh order-service` | one line `total=2 failures=0 errors=0 skipped=0` (sample-app) | `NO TEST REPORTS FOUND`: results are not under `build/test-results`; report the path. |
-| 7 | `scripts/dep-path.sh org.yaml:snakeyaml` | per-project `RESOLVED` lines (sample-app: 1.30 in `:order-service`) | Empty on Windows Git Bash: paste the raw `gradlew dependencyInsight` output. |
-| 8 | `./gradlew --offline -q :order-service:test` then `java scripts/CoverageGaps.java "**" 70 10` | summary line + table; sample-app ranks `PricingEngine` and `OrderService` first | "no jacoco.xml found": XML report disabled (`reports.xml.required = true`). |
+| 6 | `scripts/test-summary.sh order-service` | one line `total=2 failures=0 errors=0 skipped=0` (sample project) | `NO TEST REPORTS FOUND`: results are not under `build/test-results`; report the path. |
+| 7 | `scripts/dep-path.sh org.yaml:snakeyaml` | per-project `RESOLVED` lines (sample project: 1.30 in `:order-service`) | Empty on Windows Git Bash: paste the raw `gradlew dependencyInsight` output. |
+| 8 | `./gradlew --offline -q :order-service:test` then `java scripts/CoverageGaps.java "**" 70 10` | summary line + table; the sample project ranks `PricingEngine` and `OrderService` first | "no jacoco.xml found": XML report disabled (`reports.xml.required = true`). |
 | 9 | `scripts/dep-tree.sh` then `java scripts/CveTriage.java findings.csv build/deptree.txt` | 5 rows: commons-text TRANSITIVE via `:common`, snakeyaml and jackson TRANSITIVE via Spring Boot, guava DIRECT, spring-web TRANSITIVE | Column mismatch with your scanner: send the CSV header row. |
 | 10 | `scripts/jdk-check.sh 21 order-service` | toolchain facts, empty jdeps/jdeprscan sections, trouble spots: `javax\.annotation\.` 1 file | `jdeps: command not found`: JDK bin not on PATH in the IDE terminal. |
 
@@ -48,12 +48,12 @@ an untested class) or any small internal Gradle repository with the pack copied 
 ## Stage 4: one real task end to end (an afternoon)
 | # | Do | Expect |
 |---|---|---|
-| 16 | `scripts/rewrite.sh org.openrewrite.java.RemoveUnusedImports` | per-module count, "no changes proposed" on sample-app. Failure resolving `org.openrewrite:plugin`: mirror does not proxy the Gradle Plugin Portal (Nexus ticket). |
+| 16 | `scripts/rewrite.sh org.openrewrite.java.RemoveUnusedImports` | per-module count, "no changes proposed" on the sample project. Failure resolving `org.openrewrite:plugin`: mirror does not proxy the Gradle Plugin Portal (Nexus ticket). |
 | 17 | New chat: `/fix-cves findings.csv HIGH` | Triage table, grouped plan at G1/G2, catalog edits with CVE comments, `dep-path` proof per group, COMMIT POINT per group, before/after table. commons-text and guava become catalog bumps; snakeyaml and jackson become "Spring Boot BOM bump" with a stop for approval (it is a 2.7 -> 3.x hop, so expect it to hand off to upgrader rather than do it). |
 | 18 | New chat: `/migrate legacy-reports junit4 -> junit5` | Inventory (2 test files), coverage check, recipe dry run via `TestStackModernise`, apply, zero `org.junit.Test` / `org.hamcrest` references left, `tasks.test { useJUnitPlatform() }` |
 | 19 | `/review-upgrade-pr main` after 17 or 18 | PASS/FAIL checklist with evidence lines |
 | 20 | Long task: close the chat mid-way, new chat `/resume .agent-work/<folder>` | Three-line status, re-runs last verification, continues at the next open step |
 
-## What to send back
-Step number, plugin version, exact output or screenshot, `git status` if files changed. Most fixes are a wording change
-in one agent file or a path in one script.
+## What to report
+For anything that fails: the step number, the plugin version, the exact output or screenshot, and `git status` if files
+changed. Raise it as an issue in this repository; most fixes are a wording change in one agent file or a path in one script.

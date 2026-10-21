@@ -15,7 +15,7 @@ repositories stay in a known-good state between upgrades; upgrade planning start
 | Runner | `scripts/rewrite.sh` + `scripts/rewrite-init.gradle`: dry run by default, no build-file changes, per-module summary, loud failure. Maven path equivalent. |
 | Recipes in use | upgrader (Java, Spring Boot, Hibernate, Jackson), migrator (JUnit, Mockito, Hamcrest, Jakarta, logging, Joda, Guava, HttpClient), security-fixer (dependency bumps) |
 | Bundles | `rewrite.yml`: Java21Upgrade, Java21UpgradeMinimal, SpringBoot3Upgrade, TestStackModernise, SecurityHygiene (proprietary), BumpDependency, PostMigrationCleanup |
-| Verified | Gradle init-script path on sample-app: core recipe, JUnit 4 -> 5 bundle, Java 21 minimal bundle. Recipe names checked against the jars. |
+| Verified | Gradle init-script path on `examples/sample-app`: core recipe, JUnit 4 -> 5 bundle, Java 21 minimal bundle. Recipe names checked against the jars. |
 | Verified at the office | First online run resolves plugin 7.39.0 and recipe artifacts through the corporate mirror (2026-10-19). |
 | Not in use | Proprietary artifacts (`rewrite-java-security`, `io.moderne.recipe:*`), Moderne CLI, scheduled runs, cross-repository inventory |
 
@@ -102,13 +102,13 @@ Decision needed: is the subscription worth it for recurring security findings? (
 
 | # | Item | Status | Notes |
 |---|---|---|---|
-| 1 | Hygiene bundle `com.<org>.Hygiene` (Tier 1) in `rewrite.yml` + `scripts/hygiene.sh` (dry run, non-zero exit on non-empty patch) | todo | verify on sample-app first |
+| 1 | Hygiene bundle `com.<org>.Hygiene` (Tier 1) in `rewrite.yml` + `scripts/hygiene.sh` (dry run, non-zero exit on non-empty patch) | todo | verify on `examples/sample-app` first |
 | 2 | Inventory bundle `com.<org>.Inventory` (Tier 4) + `scripts/MergeDataTables.java` to combine CSVs across runs/repositories | todo | mirrors `CveTriage` approach |
 | 3 | `/hygiene` and `/inventory` prompts; planner preflight reads the inventory table when present | todo | |
 | 4 | Verify every Tier 2 recipe name in the agent tables against the jars (as done for the Java 21 bundle) | todo | one command, `unzip -l` on the cached jar |
 | 5 | `RECIPES.md` one-pager for the team: tiers, licences, which bundle when, commit rule | todo | derived from this document |
 | 6 | CI job definition for scheduled hygiene (Jenkins/GitHub Actions template, weekly, PR on non-empty patch) | todo | needs CI platform decision |
-| 7 | Reference repository chosen for bundle verification | todo | sample-app for now; pick one internal repo |
+| 7 | Reference repository chosen for bundle verification | todo | `examples/sample-app` for now; pick one internal repo |
 | 8 | Legal sign-off on MSAL use | todo | |
 | 9 | Moderne subscription decision | todo | |
 | 10 | _your next step_ | | |
