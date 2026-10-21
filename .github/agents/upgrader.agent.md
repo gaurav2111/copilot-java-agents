@@ -63,7 +63,7 @@ Run `scripts/compile-errors.sh <module>`; expect COMPILE OK still (nothing has c
 
 Two things to know about these composites:
 - `UpgradeToJava17/21/25` **include syntax modernisation sub-recipes** (text blocks, `instanceof` patterns, switch expressions and pattern matching). They are mechanical and reviewable, but if the repository wants modernisation in a separate PR, run `com.example.Java21UpgradeMinimal` instead and schedule the full composite as a follow-up.
-- MSAL (Moderne Source Available License) allows a company to run these on its own private code but forbids offering them as a service or charging clients for running them. Confirm with legal once; see README.
+- MSAL (Moderne Source Available License) allows running these on your own private code but forbids offering them as a service or charging clients for running them. Confirm with legal once; see README.
 
 ## Phase 3: manual residue (one COMMIT POINT per theme)
 1. `scripts/compile-errors.sh <module>`. Fix errors grouped by cause, not file by file. Typical causes and the right fix:

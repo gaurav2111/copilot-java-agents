@@ -7,7 +7,7 @@
 
 ## 2. Recipes and scripts run
 - `scripts/jdk-check.sh 21 order-service`: jdeps internal API use none; jdeprscan for-removal none; trouble spot `javax.annotation` x1 (compiles on 21 via Boot 2.7's jakarta.annotation-api 1.3.5; stays until the Boot 3 plan).
-- `scripts/rewrite.sh com.<org>.Java21UpgradeMinimal org.openrewrite.recipe:rewrite-migrate-java`: validation clean, "would make no changes". COMMIT POINT 2 skipped.
+- `scripts/rewrite.sh com.example.Java21UpgradeMinimal org.openrewrite.recipe:rewrite-migrate-java`: validation clean, "would make no changes". COMMIT POINT 2 skipped.
 - `scripts/compile-errors.sh`, `scripts/test-summary.sh` x3, `./gradlew --offline -q build`, 25 s `bootRun` smoke.
 
 ## 3. Manual fixes
