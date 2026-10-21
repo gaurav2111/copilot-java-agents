@@ -60,7 +60,7 @@ JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts 
    every script against the repository, writes `SETUP-REPORT.md`, and proposes the stack block. Agents refuse to start
    a task until a passing, current report exists. Rerun it after any build-file change; it is the pack's regression test.
 1. Copy `.github/`, `rewrite.yml`, `scripts/` to the repo root. `chmod +x scripts/*.sh`. On Windows use Git Bash or WSL for the shell scripts; the two Java tools run anywhere.
-2. Fill the `<!-- FILL IN -->` block in `copilot-instructions.md`: Java and framework versions, project map, test stack. Replace `com.<org>` in `rewrite.yml` and the agents with your group id.
+2. Fill the `<!-- FILL IN -->` block in `copilot-instructions.md`: Java and framework versions, project map, test stack. Replace `com.example` in `rewrite.yml` and the agents with your group id.
 3. Gradle prerequisites the scripts assume: wrapper present, JaCoCo XML report enabled (`tasks.jacocoTestReport { reports { xml.required = true } }`), integration tests in an `integrationTest` task if you have them, versions in `gradle/libs.versions.toml`. Maven: wrapper, JaCoCo plugin with `report` goal, failsafe for `*IT`.
 4. Pin OpenRewrite versions via `REWRITE_PLUGIN_VERSION` / `REWRITE_RECIPE_VERSION` (defaults are the last public versions, see table below). The Gradle path uses `scripts/rewrite-init.gradle`, which must not collide with an existing `org.openrewrite.rewrite` plugin application in the build.
 5. Make sure your artifact mirror (Nexus/Artifactory) proxies the Gradle Plugin Portal and Maven Central for `org.openrewrite.*`. OpenRewrite must also resolve **every** project dependency to parse sources; a module that only builds inside CI will not parse locally.

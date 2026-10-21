@@ -49,7 +49,7 @@ Run `scripts/compile-errors.sh <module>`; expect COMPILE OK still (nothing has c
 | Java 8/11 -> 17 | `org.openrewrite.java.migrate.UpgradeToJava17` | `rewrite-migrate-java` | MSAL |
 | Java -> 21 | `org.openrewrite.java.migrate.UpgradeToJava21` | `rewrite-migrate-java` | MSAL |
 | Java -> 25 | `org.openrewrite.java.migrate.UpgradeToJava25` | `rewrite-migrate-java` | MSAL |
-| Java, build + removed APIs only (no syntax changes) | `com.<org>.Java21UpgradeMinimal` from `rewrite.yml` | `rewrite-migrate-java` | MSAL |
+| Java, build + removed APIs only (no syntax changes) | `com.example.Java21UpgradeMinimal` from `rewrite.yml` | `rewrite-migrate-java` | MSAL |
 | javax -> jakarta (standalone) | `org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta` | `rewrite-migrate-java` | MSAL |
 | Spring Boot 2.x -> 3.x | `org.openrewrite.java.spring.boot3.UpgradeSpringBoot_3_<minor>` (3_0 .. 3_5; the highest minor chains the lower ones, Java 17, Framework 6, Security 6, Hibernate 6) | `rewrite-spring` | MSAL |
 | Spring Boot 3.5 -> 4.0 | `org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` (chains Framework 7, Security 7, Hibernate 7.1, Jackson 3, Testcontainers 2, modular starters, `@MockitoBean`) | `rewrite-spring` | MSAL |
@@ -58,12 +58,12 @@ Run `scripts/compile-errors.sh <module>`; expect COMPILE OK still (nothing has c
 | Spring Security | `org.openrewrite.java.spring.security5.WebSecurityConfigurerAdapter`, `security6.UpgradeSpringSecurity_6_0` .. `_6_5`, `security7.UpgradeSpringSecurity_7_0` | `rewrite-spring` | MSAL |
 | Hibernate 5 -> 6.x / 7.x | `org.openrewrite.hibernate.MigrateToHibernate60` .. `66`, `70`, `71`, `72` | `rewrite-hibernate` | MSAL |
 | Jackson 2 -> 3 (comes with Boot 4) | `org.openrewrite.java.jackson.UpgradeJackson_2_3` | `rewrite-jackson` | Apache 2.0 |
-| Repo-specific bundle | `com.<org>.<Name>` from `rewrite.yml` | (local) | |
+| Repo-specific bundle | `com.example.<Name>` from `rewrite.yml` | (local) | |
 <!-- Verified 2026-10-16 against the recipe catalog at docs.moderne.io/user-documentation/recipes/recipe-catalog. Re-check when bumping versions. -->
 
 Two things to know about these composites:
-- `UpgradeToJava17/21/25` **include syntax modernisation sub-recipes** (text blocks, `instanceof` patterns, switch expressions and pattern matching). They are mechanical and reviewable, but if the repository wants modernisation in a separate PR, run `com.<org>.Java21UpgradeMinimal` instead and schedule the full composite as a follow-up.
-- MSAL (Moderne Source Available License) allows a company to run these on its own private code but forbids offering them as a service or charging clients for running them. Confirm with legal once per organisation; see README.
+- `UpgradeToJava17/21/25` **include syntax modernisation sub-recipes** (text blocks, `instanceof` patterns, switch expressions and pattern matching). They are mechanical and reviewable, but if the repository wants modernisation in a separate PR, run `com.example.Java21UpgradeMinimal` instead and schedule the full composite as a follow-up.
+- MSAL (Moderne Source Available License) allows a company to run these on its own private code but forbids offering them as a service or charging clients for running them. Confirm with legal once; see README.
 
 ## Phase 3: manual residue (one COMMIT POINT per theme)
 1. `scripts/compile-errors.sh <module>`. Fix errors grouped by cause, not file by file. Typical causes and the right fix:
@@ -90,7 +90,7 @@ Two things to know about these composites:
 - Do not downgrade anything to make the build pass; find the version the BOM expects.
 - Never change test `jvmArgs` / `argLine`, `--add-opens`, `--enable-preview`, or `-Djava.security.manager=allow` silently; each is a flagged item in the report.
 - Multi-project: upgrade shared/library projects before the apps that depend on them; never leave the build with mixed toolchain levels unless the plan says so. In Gradle the toolchain usually lives in one convention plugin under `buildSrc` or `build-logic`; change it there.
-- Stop and ask when: a dependency has no version compatible with the target, an internal `com.<org>` library is the blocker, or a test failure looks like a behaviour change rather than an API change.
+- Stop and ask when: a dependency has no version compatible with the target, an internal `com.example` library is the blocker, or a test failure looks like a behaviour change rather than an API change.
 
 ## Report (append to the repository's standard output format)
 - Toolchain changes table (plugin/library: old -> new).

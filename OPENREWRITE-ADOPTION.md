@@ -38,7 +38,7 @@ P = Moderne Proprietary (subscription). Artifact group is `org.openrewrite.recip
 ### Tier 2: migrations, once per repository when due
 | Recipe | Artifact | Lic. |
 |---|---|---|
-| `org.openrewrite.java.migrate.UpgradeToJava17` / `UpgradeToJava21` / `UpgradeToJava25` (includes syntax modernisation; use `com.<org>.Java21UpgradeMinimal` to exclude it) | rewrite-migrate-java | M |
+| `org.openrewrite.java.migrate.UpgradeToJava17` / `UpgradeToJava21` / `UpgradeToJava25` (includes syntax modernisation; use `com.example.Java21UpgradeMinimal` to exclude it) | rewrite-migrate-java | M |
 | `org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta` | rewrite-migrate-java | M |
 | `org.openrewrite.java.spring.boot3.UpgradeSpringBoot_3_5`, `org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` | rewrite-spring | M |
 | `org.openrewrite.java.spring.framework.UpgradeSpringFramework_6_2` / `_7_0`; `security6.UpgradeSpringSecurity_6_5`, `security7.UpgradeSpringSecurity_7_0` | rewrite-spring | M |
@@ -102,8 +102,8 @@ Decision needed: is the subscription worth it for recurring security findings? (
 
 | # | Item | Status | Notes |
 |---|---|---|---|
-| 1 | Hygiene bundle `com.<org>.Hygiene` (Tier 1) in `rewrite.yml` + `scripts/hygiene.sh` (dry run, non-zero exit on non-empty patch) | todo | verify on `examples/sample-app` first |
-| 2 | Inventory bundle `com.<org>.Inventory` (Tier 4) + `scripts/MergeDataTables.java` to combine CSVs across runs/repositories | todo | mirrors `CveTriage` approach |
+| 1 | Hygiene bundle `com.example.Hygiene` (Tier 1) in `rewrite.yml` + `scripts/hygiene.sh` (dry run, non-zero exit on non-empty patch) | todo | verify on `examples/sample-app` first |
+| 2 | Inventory bundle `com.example.Inventory` (Tier 4) + `scripts/MergeDataTables.java` to combine CSVs across runs/repositories | todo | mirrors `CveTriage` approach |
 | 3 | `/hygiene` and `/inventory` prompts; planner preflight reads the inventory table when present | todo | |
 | 4 | Verify every Tier 2 recipe name in the agent tables against the jars (as done for the Java 21 bundle) | todo | one command, `unzip -l` on the cached jar |
 | 5 | `RECIPES.md` one-pager for the team: tiers, licences, which bundle when, commit rule | todo | derived from this document |

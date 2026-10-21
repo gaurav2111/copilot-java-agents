@@ -87,7 +87,7 @@ No composite for your case? Write one in `rewrite.yml` from leaf recipes (`Chang
 - Never migrate production and tests to a new framework in the same commit when the test framework is also changing; tests first (they prove the production migration), then production.
 - Do not mix two migrations (e.g. JUnit 4->5 and javax->jakarta) in one PR even if the same recipe bundle can do both.
 - Stop and ask when a public contract (HTTP, messaging, database schema, file format) cannot be preserved.
-- Internal `com.<org>` frameworks: look for their migration guide in the repo or wiki first; ask before replacing.
+- Internal `com.example` frameworks: look for their migration guide in the repo or wiki first; ask before replacing.
 
 ## Report
 Inventory before/after (counts), recipes run, manual seams with the "why", behaviour differences found (even if accepted), characterisation tests added, remaining work with an ordered list, follow-up modernisation candidates.

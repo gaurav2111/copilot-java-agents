@@ -6,7 +6,7 @@
   (Maven repositories: same scripts work; they detect `pom.xml` and use `./mvnw`.)
 - Tests: JUnit 5, Mockito, AssertJ. Integration tests end in `*IT` and run in the `integrationTest` task (Maven: failsafe). Coverage: JaCoCo with XML report enabled.
 - Projects: `:common` (shared library), `:order-service` (Spring Boot REST app), `:legacy-reports` (library, still on JUnit 4 + Hamcrest).
-- Internal libraries: none (sample project).
+- Internal libraries: `com.example.*` artifacts come from the corporate Nexus; never replace them with public equivalents.
 
 ## Commands (use these, never raw Gradle/Maven output; all run from the repo root)
 - Compile and show only errors: `scripts/compile-errors.sh <module>`
