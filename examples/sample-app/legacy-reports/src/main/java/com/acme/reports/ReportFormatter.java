@@ -9,7 +9,7 @@ public class ReportFormatter {
     public String row(Map<String, String> values) { return TextUtils.fill("${name}: ${value}", values); }
     public String render(String title, List<Map<String, String>> rows) {
         StringBuilder sb = new StringBuilder(header(title)).append('\n');
-        for (Map<String, String> r : rows) sb.append(row(r)).append('\n');
+        for (Map<String, String> r : rows) { System.out.println("rendering row " + r); sb.append(row(r)).append('\n'); }
         return sb.toString();
     }
 }

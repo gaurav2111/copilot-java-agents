@@ -19,6 +19,7 @@ default**; the same scripts and agents work on Maven repositories (the scripts d
     tests.instructions.md      applyTo src/test           - unit/IT conventions and hard rules
     build.instructions.md      applyTo gradle/toml/pom    - version hygiene, constraints, comments, no repos
     docs.instructions.md       applyTo *.md, docs/, puml  - documentation and diagram conventions
+    logging.instructions.md    applyTo logback/log4j2/application config - logging configuration rules
   agents/
     planner.agent.md           read-only plan + risks + hand-off prompt
     upgrader.agent.md          Java and framework VERSION upgrades
@@ -26,6 +27,7 @@ default**; the same scripts and agents work on Maven repositories (the scripts d
     migrator.agent.md          API migrations (JUnit4->5, javax->jakarta, Log4j->SLF4J, ...)
     test-engineer.agent.md     unit tests, integration tests, coverage raising
     docs-writer.agent.md       diagrams (Mermaid), READMEs, API reference, runbooks, Javadoc, ADRs
+    log-engineer.agent.md      audit, add, reduce and modernise logging; prices volume against the log sink
   prompts/                     slash commands that pre-select the agent and carry per-run inputs
   hooks/
     hooks.json + guard.sh      preToolUse: blocks ALL git writes, installs/downloads, publish/deploy, recursive rm, infra
@@ -45,6 +47,9 @@ scripts/
   rewrite-init.gradle          Gradle init script used by rewrite.sh (no build.gradle changes)
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
+  LogAudit.java                every log statement with noise/risk flags (loop, hot path, payload, PII, no cause, concat, duplicate), ranked; config findings
+  LogVolume.java               log-sink export + LogAudit CSV -> GB/day and $/day per source line, with the action to take
+  log-lint.sh                  commit-point gate: PII in logs and System.out block; concatenation, payloads, INFO in loops warn
 ```
 
 ## What each piece does, and how you use it
@@ -60,6 +65,7 @@ carries only what it needs, and so that rules live in one place each.
 | `.github/prompts/*.prompt.md` | when you type `/name` in the chat | A reusable one-line start for a task: it selects the agent and carries the inputs | Type `/upgrade-java order-service 21` or `/fix-cves findings.csv HIGH`. Type `/` alone to see the list. |
 | `.github/AGENT-PROTOCOL.md` | read once by every agent at the start of a run | How every agent works: facts with sources, the four work files per task, the five gates, numbered-option questions, what agents never do, how to resume | Nothing to do day to day. Change it when the way of working should change for all agents at once. |
 | `.github/AGENT-RULES.md` | read once by every agent after the protocol | Your team's rules: hard boundaries (paths and commands the agents never touch) and standing instructions (things they always do) | Edit it; the agents never do. `- path:` and `- command:` lines are also enforced by the hook. |
+| `.github/LOGGING-POLICY.md` | read by the log-engineer on every run | What each level means, where a log belongs, what is never logged, structured format, framework levels in production, price per GB of the sink | Fill in the sink and price; list the messages alerts depend on. The agent applies it as written and records disagreements in `issues.md`. |
 | `.github/hooks/hooks.json` + `guard.sh` | before every tool call an agent makes | Mechanical enforcement the model cannot talk its way around: no git writes, no installs or downloads, no publish or deploy, no force push, plus the team's path and command boundaries | Nothing to do; it runs by itself. Test it once by asking an agent to run `git push --force` and watching it get blocked. |
 | `scripts/*` | when an agent (or you) runs them | Turn big outputs into small tables: compile errors only, test counts and failing names, how a dependency reaches the build, coverage gaps ranked, CVE triage, JDK compatibility, OpenRewrite dry runs | Run them from the repository root. They work on Gradle and Maven and detect which one you have. |
 | `rewrite.yml` | when `scripts/rewrite.sh` is given a bundle name | OpenRewrite recipe bundles with your organisation's choices baked in, so an agent runs one name instead of reasoning about ten recipes | Rename the `com.example` prefix. Add a bundle when a migration recurs. Dry-run every bundle on the example project before CI uses it. |

@@ -2,9 +2,9 @@
 
 This is a draft; I am still testing it and aim to release a finished version by Diwali.
 
-What is in the pack: 6 agents, 13 prompts, 1 always-on instruction file plus 4 path-scoped ones, 1 guard hook,
-9 scripts, 7 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 sample project with planted flaws,
-and 4 documents (README, testing checklist, OpenRewrite adoption plan, roadmap).
+What is in the pack: 7 agents, 16 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
+12 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
+with planted flaws, and 4 documents (README, testing checklist, OpenRewrite adoption plan, roadmap).
 
 The old setup was two agents, planner and implementer, each a 600-line file doing everything: upgrades, CVE fixes,
 tests. It worked, but every chat carried both files on every turn, and every rule was a sentence the model was asked
@@ -16,8 +16,8 @@ agents, commands, rules and hooks. Ours applies that shape to GitHub Copilot and
 
 - **Instructions**: one 34-line file always on, with the stack, the commands and the hard rules. Path rules for Java,
   tests, build files and docs load only when such a file is touched.
-- **Agents**: six short files, one per task type: planner, upgrader, security-fixer, migrator, test-engineer,
-  docs-writer. Only the one you pick is loaded.
+- **Agents**: seven short files, one per task type: planner, upgrader, security-fixer, migrator, test-engineer,
+  docs-writer, log-engineer. Only the one you pick is loaded.
 - **Prompts**: slash commands like `/upgrade-java order-service 21` or `/fix-cves findings.csv HIGH`. They pick the
   agent and carry the inputs.
 - **Hooks**: a script that runs before every tool call and blocks git writes, downloads, force pushes, and any path or
@@ -115,10 +115,14 @@ Type `/` in Copilot chat to see these. Each one picks the right agent and asks f
 | `/add-integration-test <module> '<flow>'` | One integration test for a flow, on the narrowest Spring slice, with Testcontainers or WireMock. |
 | `/document <subject> \| <format>` | Sequence or flow diagrams, module README, API reference, runbook, Javadoc or ADR, every statement traced to a file. |
 | `/review-upgrade-pr <base>` | Pre-PR checklist against the pack's rules: commit hygiene, no disabled tests, no silent flags, report present. |
+| `/audit-logs <scope> [export.csv] [price]` | Read-only inventory of every log statement with noise and risk flags, priced against the log sink when an export is given. |
+| `/reduce-logs <scope> <target> [export.csv]` | Cuts log volume and cost: config levels first, then loops, tracing, payloads, duplicates, PII; recipe pass for the mechanical fixes; bytes and $ before and after. |
+| `/add-logs <module> <classes or flow>` | Adds the logs the policy says are missing: boundary completion lines, business events, outbound call summaries, exception causes, correlation id. |
 | `/resume .agent-work/<folder>` | Continue any task in a fresh chat or on a different model, from its work files. |
 
-The agents behind them: `planner`, `upgrader`, `security-fixer`, `migrator`, `test-engineer`, `docs-writer`. Pick one
+The agents behind them: `planner`, `upgrader`, `security-fixer`, `migrator`, `test-engineer`, `docs-writer`, `log-engineer`. Pick one
 from the mode picker when no prompt fits.
 
 The scripts they use, also runnable by hand from the repository root: `compile-errors.sh`, `test-summary.sh`,
-`dep-path.sh`, `dep-tree.sh`, `jdk-check.sh`, `rewrite.sh`, `setup-check.sh`, `CoverageGaps.java`, `CveTriage.java`.
+`dep-path.sh`, `dep-tree.sh`, `jdk-check.sh`, `rewrite.sh`, `setup-check.sh`, `log-lint.sh`, `CoverageGaps.java`, `CveTriage.java`,
+`LogAudit.java`, `LogVolume.java`.

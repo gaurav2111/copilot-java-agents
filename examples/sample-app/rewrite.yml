@@ -85,3 +85,20 @@ description: "Run as its own commit after any recipe-driven change. Formatting-n
 recipeList:
   - org.openrewrite.java.RemoveUnusedImports          # core, Apache 2.0, skips files with unresolved types
   - org.openrewrite.staticanalysis.CodeCleanup        # 25 formatting/style fixes; NOT CommonStaticAnalysis, which is opinionated and noisy
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: com.example.LoggingHygiene
+displayName: "Logging hygiene: placeholders, causes, loggers, System.out, guards"
+description: >
+  Mechanical logging fixes that change no behaviour: string concatenation to SLF4J placeholders, loggers named for the
+  enclosing class and private, exceptions logged with their cause, printStackTrace and System.out/err to logger calls,
+  unnecessary isDebugEnabled guards removed and expensive statements guarded, catch-block levels. Used by the
+  log-engineer agent as Phase 1. Artifact: org.openrewrite.recipe:rewrite-logging-frameworks (MSAL).
+recipeList:
+  - org.openrewrite.java.logging.slf4j.Slf4jBestPractices
+  - org.openrewrite.java.logging.SystemPrintToLogging:
+      addLogger: true
+      loggingFramework: SLF4J
+  - org.openrewrite.java.logging.PrintStackTraceToLogError:
+      addLogger: true
+      loggingFramework: SLF4J

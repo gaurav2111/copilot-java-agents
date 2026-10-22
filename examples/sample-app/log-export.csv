@@ -1,0 +1,9 @@
+pattern,events_per_day,bytes_per_day
+checking line * qty * for customer * email *,4200000,1890000000
+available called for sku=*,3100000,620000000
+Entering place() for order * with lines *,410000,738000000
+Hibernate: select * from orders where *,2600000,1300000000
+order * confirmed for *,410000,61500000
+Exiting place(),410000,24600000
+Started SampleApplication in * seconds,12,4000
+lookup failed for *,900,90000

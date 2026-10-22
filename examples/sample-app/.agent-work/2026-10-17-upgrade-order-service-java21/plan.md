@@ -23,7 +23,7 @@ Raise the Java bytecode level of all three projects from 17 to 21, build-plumbin
 1. [x] Baseline re-check - result: COMPILE OK [gradle]; order-service 2/2; legacy-reports 2/2 - tool: `scripts/compile-errors.sh`, `scripts/test-summary.sh order-service`, `scripts/test-summary.sh legacy-reports` - verifies with: COMPILE OK, 2/2 and 2/2
 2. [x] Build plumbing - result: COMPILE OK [gradle]; OrderService.class major version 65; diff: build.gradle.kts 2 lines - tool: manual, one edit: `options.release.set(21)` in build.gradle.kts:16; JaCoCo 0.8.12 already supports class file 65, no change - verifies with: `scripts/compile-errors.sh` -> COMPILE OK [gradle]
    COMMIT POINT: `build: compile all projects for Java 21`
-3. [x] Recipe pass - result: dry run valid after correcting recipeList[7]; 'Applying recipes would make no changes'; COMMIT POINT 2 skipped as planned - tool: `scripts/rewrite.sh com.example.Java21UpgradeMinimal org.openrewrite.recipe:rewrite-migrate-java` (dry run, read per-module counts; expected: 0-2 files, since jdeps/jdeprscan found nothing) then `--apply` if non-empty - verifies with: `git diff --stat`, `scripts/compile-errors.sh`
+3. [x] Recipe pass - result: dry run valid after correcting recipeList[7]; 'Applying recipes would make no changes'; COMMIT POINT 2 skipped as planned - tool: `scripts/rewrite.sh com.<org>.Java21UpgradeMinimal org.openrewrite.recipe:rewrite-migrate-java` (dry run, read per-module counts; expected: 0-2 files, since jdeps/jdeprscan found nothing) then `--apply` if non-empty - verifies with: `git diff --stat`, `scripts/compile-errors.sh`
    COMMIT POINT: `refactor: apply Java21UpgradeMinimal (<n> files)` (skip if the dry run proposes nothing; record that in plan.md)
 4. [x] Manual residue - result: none (COMPILE OK) - expected none; if compile errors appear, group by cause and fix one cause per COMMIT POINT - verifies with: `scripts/compile-errors.sh`
 5. [x] Tests - result: order-service 2/2, legacy-reports 2/2, common no test sources; equal to baseline - tool: `scripts/test-summary.sh order-service`, `scripts/test-summary.sh legacy-reports` - verifies with: counts equal to baseline
@@ -43,4 +43,4 @@ Raise the Java bytecode level of all three projects from 17 to 21, build-plumbin
 
 ## Hand-off
 Agent: upgrader
-First prompt: "Execute .agent-work/2026-10-17-upgrade-order-service-java21/plan.md steps 1-8 for all projects, target Java 21, bundle com.example.Java21UpgradeMinimal, no modernisation. Stop at each COMMIT POINT. Step 0 is done."
+First prompt: "Execute .agent-work/2026-10-17-upgrade-order-service-java21/plan.md steps 1-8 for all projects, target Java 21, bundle com.<org>.Java21UpgradeMinimal, no modernisation. Stop at each COMMIT POINT. Step 0 is done."

@@ -4,3 +4,8 @@ acme:
   order:
     max-quantity: 50
     inventory-url: http://inventory.example.internal   # property NAME is fine in docs; value must never be copied
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: DEBUG

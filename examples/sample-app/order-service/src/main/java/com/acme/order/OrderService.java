@@ -28,8 +28,11 @@ public class OrderService {
     void init() { log.info("OrderService ready, maxQuantity={}", maxQuantity); }
 
     public Order place(Order order) {
+        log.info("Entering place() for order " + order.id() + " with lines " + order.lines());   // concat + payload + entry trace
+        System.out.println("placing order " + order);                                           // System.out
         if (order.lines().isEmpty()) throw new IllegalArgumentException("order must have at least one line");
         for (Order.Line line : order.lines()) {
+            log.info("checking line {} qty {} for customer {} email {}", line.sku(), line.quantity(), order.customerId(), order.customerId() + "@example.invalid"); // INFO in loop + PII
             if (Strings.isNullOrEmpty(line.sku())) throw new IllegalArgumentException("sku missing");
             if (line.quantity() <= 0) throw new IllegalArgumentException("quantity must be positive: " + line.sku());
             if (line.quantity() > maxQuantity) throw new IllegalArgumentException("quantity exceeds " + maxQuantity + ": " + line.sku());
@@ -39,7 +42,17 @@ public class OrderService {
         order.status(Order.Status.CONFIRMED);
         orders.put(order.id(), order);
         log.info(TextUtils.fill("order ${id} confirmed for ${customer}", Map.of("id", order.id(), "customer", order.customerId())));
+        log.info("Exiting place()");
         return order;
+    }
+
+    public Optional<Order> findSafely(String id) {
+        try {
+            return find(id);
+        } catch (RuntimeException e) {
+            log.error("lookup failed for " + id);          // no cause, concat
+            return Optional.empty();
+        }
     }
 
     public Optional<Order> find(String id) { return Optional.ofNullable(orders.get(id)); }
