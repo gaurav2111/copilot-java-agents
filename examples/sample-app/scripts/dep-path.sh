@@ -41,7 +41,7 @@ if [ "$BUILD" = gradle ]; then
   [ -z "$BOOT_VER" ] && BOOT_VER=$(grep -hoE "^spring-boot\s*=\s*['\"][0-9.]+" gradle/libs.versions.toml 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)
   REASONS=$(echo "$OUT" | grep -oiE "by constraint|selected by rule|forced|conflict resolution|by ancestor" | sort -u | tr '\n' ' ')
   [ -n "$REASONS" ] && echo "  selection reasons seen: $REASONS"
-  if [ -n "$BOMS" ]; then echo "$BOMS" | sed 's/^/  declared BOM or platform: /'; fi
+  if [ -n "$BOMS" ]; then echo "  BOMs declared in the build files (all of them; BomFix below says which one manages THIS artifact):"; echo "$BOMS" | sed 's/^/    /'; fi
   if [ -n "$DM_PLUGIN" ]; then
     echo "  mechanism: io.spring.dependency-management plugin (versions imposed by rule; BOM never shows in the tree)"
     [ -n "$BOOT_VER" ] && [ -z "$(echo "$BOMS" | grep spring-boot-dependencies)" ] && echo "  implied BOM: org.springframework.boot:spring-boot-dependencies:$BOOT_VER (imported automatically by the Spring Boot plugin)"
