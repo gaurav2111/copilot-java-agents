@@ -24,9 +24,9 @@ import java.util.stream.*;
  */
 @SuppressWarnings("unchecked")
 public class XrayToFindings {
-    static boolean EXPLAIN = false; static int explained = 0;
+    static boolean EXPLAIN = false, EXPLAIN_MISSING = false; static int explained = 0;
     static final Pattern GAV = Pattern.compile("(?:gav://)?([\\w.-]+):([\\w.-]+)(?::([\\w.+-]+))?");
-    static final Pattern VER = Pattern.compile("\\d+(?:\\.\\d+)+(?:[-.][\\w.]+)?");
+    static final Pattern VER = Pattern.compile("(?<![\\w.])v?(\\d+(?:\\.\\d+)*(?:[-.][\\w]+)*)(?![\\w.])");
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) { System.err.println("usage: XrayToFindings <xray.json> [findings.csv] [--min-severity Sev] [--all-versions] [--diff before.json]"); System.exit(2); }
@@ -36,6 +36,7 @@ public class XrayToFindings {
             else if (args[i].equals("--diff")) diff = args[++i];
             else if (args[i].equals("--all-versions")) allVersions = true;
             else if (args[i].equals("--explain")) EXPLAIN = true;
+            else if (args[i].equals("--explain-missing")) EXPLAIN_MISSING = true;
             else out = Paths.get(args[i]);
         }
         List<Finding> findings = load(in);
@@ -130,7 +131,12 @@ public class XrayToFindings {
         if (comps.isEmpty()) return out;
         for (String[] comp : comps) {
             if (comp[1].isEmpty()) continue;
-            String fix = pickFix(comp[3].isEmpty() ? deepFixed : comp[3], comp[2]);
+            String rawFixed = comp[3].isEmpty() ? deepFixed : comp[3];
+            String fix = pickFix(rawFixed, comp[2]);
+            if (EXPLAIN_MISSING && fix.isEmpty())
+                System.out.println("NO FIX: " + issueId + " " + comp[0] + ":" + comp[1] + " current '" + comp[2] + "'  raw fixed_versions = "
+                        + (rawFixed.isEmpty() ? "EMPTY in the report (Xray lists no fixed version: expected)" : "'" + rawFixed + "' (present but not parsed: version format not recognised -> report this line)")
+                        + "  finding keys = " + m.keySet());
             if (EXPLAIN && explained <= 2) System.out.println("  -> " + comp[0] + ":" + comp[1] + " current '" + comp[2] + "' fixed list '" + (comp[3].isEmpty() ? deepFixed : comp[3]) + "' chosen fix '" + fix + "'");
             for (String cve : cves) {
                 Finding f = new Finding(); f.group = comp[0]; f.artifact = comp[1]; f.version = comp[2]; f.cve = cve; f.severity = severity; f.fix = fix; f.issueId = issueId; f.applicable = applicable; f.summary = summary;
@@ -170,7 +176,7 @@ public class XrayToFindings {
         if (fixedList == null || fixedList.isEmpty()) return "";
         List<String> cands = new ArrayList<>();
         Matcher mm = VER.matcher(fixedList);
-        while (mm.find()) cands.add(mm.group());
+        while (mm.find()) { String v = mm.group(1); if (v.matches("\\d+") && v.length() > 4) continue; cands.add(v); }   // skip ids like 2024 or CVE numbers
         if (cands.isEmpty()) return "";
         List<String> above = cands.stream().filter(v -> current.isEmpty() || compareVersions(v, current) > 0).sorted(XrayToFindings::compareVersions).collect(Collectors.toList());
         if (above.isEmpty()) return cands.stream().min(XrayToFindings::compareVersions).get();
