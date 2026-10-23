@@ -86,16 +86,29 @@ public class BomFix {
             List<String> versions = availableVersions(b[0], b[1]).stream().filter(v -> compareVersions(v, current) > 0 && !v.matches("(?i).*(SNAPSHOT|M\\d|RC\\d|alpha|beta).*")).sorted(BomFix::compareVersions).collect(Collectors.toList());
             if (versions.isEmpty()) { System.out.println("    no newer release found" + (lastError != null ? " (" + lastError + ")" : " in the repository metadata")); continue; }
             String[] cur = current.split("\\.");
-            Map<String, String> firstPerHop = new LinkedHashMap<>(); int checked = 0; String propName = null;
-            for (String v : versions) {
-                String hop = hop(cur, v.split("\\."));
-                if (firstPerHop.containsKey(hop)) continue;           // first release per hop size is enough
-                if (checked++ >= max) break;
-                String mv = managedVersion(b[0], b[1], v, ga[0], ga[1], 0);
-                if (mv != null && compareVersions(mv, fix) >= 0) { firstPerHop.put(hop, v + " (manages " + mv + ")"); if (propName == null) propName = propertyFor(b[0], b[1], v, ga[0], ga[1]); }
+            // Group releases by major.minor line. For each line check its NEWEST release first: if that one does not
+            // manage the fix, no older release of the line does, and the whole line is skipped in one POM read.
+            Map<String, List<String>> lines = new LinkedHashMap<>();
+            for (String v : versions) { String[] parts = v.split("\\."); lines.computeIfAbsent(parts[0] + "." + (parts.length > 1 ? parts[1] : "0"), k -> new ArrayList<>()).add(v); }
+            Map<String, String> firstPerHop = new LinkedHashMap<>(); int checked = 0; String propName = null; boolean budgetHit = false;
+            for (Map.Entry<String, List<String>> line : lines.entrySet()) {
+                List<String> rel = line.getValue(); String newest = rel.get(rel.size() - 1);
+                String hop = hop(cur, newest.split("\\."));
+                if (firstPerHop.containsKey(hop)) continue;
+                if (checked++ >= max) { budgetHit = true; break; }
+                String mvNewest = managedVersion(b[0], b[1], newest, ga[0], ga[1], 0);
+                if (mvNewest == null || compareVersions(mvNewest, fix) < 0) continue;      // whole line too old
+                String found = newest, mvFound = mvNewest;
+                for (String v : rel) {                                                         // oldest first: the first that satisfies
+                    if (checked++ >= max) { budgetHit = true; break; }
+                    String mv = managedVersion(b[0], b[1], v, ga[0], ga[1], 0);
+                    if (mv != null && compareVersions(mv, fix) >= 0) { found = v; mvFound = mv; break; }
+                }
+                firstPerHop.put(hop, found + " (manages " + mvFound + ")");
+                if (propName == null) propName = propertyFor(b[0], b[1], found, ga[0], ga[1]);
                 if (firstPerHop.size() == 3) break;
             }
-            if (firstPerHop.isEmpty()) { System.out.println("    no release of this BOM (checked " + checked + ") manages >= " + fix + "; use a property override or a constraint, and flag it as debt"); }
+            if (firstPerHop.isEmpty()) { System.out.println("    no release of this BOM manages >= " + fix + (budgetHit ? " within the first " + max + " POM reads (rerun with --max " + (max * 3) + ")" : " (all " + lines.size() + " release lines checked)") + "; use a property override or a constraint, and flag it as debt"); }
             for (Map.Entry<String, String> e : firstPerHop.entrySet()) {
                 String v = e.getValue().split(" ")[0];
                 System.out.printf("    %-6s hop: %s%s%n", e.getKey(), e.getValue(), e.getKey().equals("patch") ? "   <- proposed" : "   (needs a decision)");

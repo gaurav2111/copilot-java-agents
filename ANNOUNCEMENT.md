@@ -3,7 +3,7 @@
 This is a draft; I am still testing it and aim to release a finished version by Diwali.
 
 What is in the pack: 7 agents, 16 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
-14 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
+15 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
 with planted flaws, and 4 documents (README, testing checklist, OpenRewrite adoption plan, roadmap).
 
 The old setup was two agents, planner and implementer, each a 600-line file doing everything: upgrades, CVE fixes,
@@ -107,7 +107,7 @@ Type `/` in Copilot chat to see these. Each one picks the right agent and asks f
 | `/plan <task>` | Read-only. Facts from the build files with sources, multiple-choice questions, then a numbered plan with risks. |
 | `/upgrade-java <module> <version>` | Java version hop: toolchain, OpenRewrite recipe, residue, tests, smoke start. |
 | `/upgrade-spring-boot <module> <version>` | Spring Boot hop, one major at a time, with the properties migrator and security changes called out. |
-| `/fix-cves <findings.csv or xray.json> <severity>` | Converts an Xray report if given, triages: direct or transitive, reach, strategy per group; bump, constraint, exclusion or justified exception; closes the loop against the rescan. |
+| `/fix-cves <findings.csv or xray.json> <severity>` | Runs the CVE flow: report to findings, dependency tree, triage, and a BOM verdict per artifact (stale scan, override, patch-level BOM bump, or decision); then bump, constraint, exclusion or justified exception; closes the loop against the rescan. |
 | `/fix-sast <findings>` | Code-level security findings fixed at the call site, each with a test that fails on the old code. |
 | `/migrate <module> <from> -> <to>` | API migrations: JUnit 4 to 5, javax to jakarta, Log4j to SLF4J, Hamcrest to AssertJ and more. Inventory, recipe, residue, zero references left. |
 | `/add-tests <module> <Class,...>` | Unit tests for named classes, mirroring the module's existing test style. Never touches production code. |
@@ -125,4 +125,4 @@ from the mode picker when no prompt fits.
 
 The scripts they use, also runnable by hand from the repository root: `compile-errors.sh`, `test-summary.sh`,
 `dep-path.sh`, `dep-tree.sh`, `jdk-check.sh`, `rewrite.sh`, `setup-check.sh`, `log-lint.sh`, `CoverageGaps.java`, `CveTriage.java`,
-`LogAudit.java`, `LogVolume.java`, `XrayToFindings.java`, `BomFix.java`.
+`LogAudit.java`, `LogVolume.java`, `XrayToFindings.java`, `BomFix.java`, `cve-flow.sh`.

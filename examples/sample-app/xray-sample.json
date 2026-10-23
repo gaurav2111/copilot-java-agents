@@ -1,0 +1,52 @@
+{
+  "total_count": 4,
+  "data": [
+    {
+      "id": "XRAY-109823",
+      "severity": "Critical",
+      "severity_source": "NVD",
+      "pkg_type": "maven",
+      "summary": "Apache Tomcat request smuggling via malformed chunked transfer encoding allows an attacker to ...",
+      "component": "gav://org.apache.tomcat.embed:tomcat-embed-core:10.1.56",
+      "source_id": "build/order-service/1.0.0",
+      "source_comp_id": "gav://org.apache.tomcat.embed:tomcat-embed-core:10.1.56",
+      "cves": [ { "cve": "CVE-2026-12345", "cvss_v3_score": "9.8" } ],
+      "component_versions": [
+        {
+          "id": "org.apache.tomcat.embed:tomcat-embed-core",
+          "vulnerable_versions": [ "10.1.55 <= Version <= 10.1.59", "11.0.22 <= Version <= 11.0.25" ],
+          "fixed_versions": [ "[10.1.60]", "[11.0.26]" ],
+          "more_details": { "description": "long text", "references": [ "https://example.invalid/a" ] }
+        }
+      ],
+      "applicability": { "status": "applicable", "details": "reachable from com.acme.order.OrderController" }
+    },
+    {
+      "id": "XRAY-98765",
+      "severity": "High",
+      "summary": "SnakeYAML constructor allows remote code execution when loading untrusted documents",
+      "component": "gav://org.yaml:snakeyaml:1.30",
+      "source_comp_id": "gav://org.yaml:snakeyaml:1.30",
+      "cves": [ { "cve": "CVE-2022-1471" } ],
+      "component_versions": [ { "id": "org.yaml:snakeyaml", "vulnerable_versions": [ "Version <= 1.33" ], "fixed_versions": [ "[2.0]" ] } ],
+      "applicability": { "status": "not applicable", "details": "SafeConstructor used" }
+    },
+    {
+      "id": "XRAY-55555",
+      "severity": "Medium",
+      "summary": "jackson-databind deep nesting denial of service",
+      "component": "gav://com.fasterxml.jackson.core:jackson-databind:2.13.5",
+      "source_comp_id": "gav://com.fasterxml.jackson.core:jackson-databind:2.13.5",
+      "cves": [ { "cve": "CVE-2023-35116" }, { "cve": "CVE-2023-99999" } ],
+      "component_versions": [ { "id": "com.fasterxml.jackson.core:jackson-databind", "vulnerable_versions": [ "Version < 2.15.3" ], "fixed_versions": [ "≥ 2.15.3", "[2.16.0]" ] } ]
+    },
+    {
+      "id": "XRAY-77777",
+      "severity": "Low",
+      "summary": "guava temp dir permissions",
+      "component": "gav://com.google.guava:guava:30.1-jre",
+      "source_comp_id": "gav://com.google.guava:guava:30.1-jre",
+      "component_versions": [ { "id": "com.google.guava:guava", "vulnerable_versions": [ "Version < 32.0.0" ], "fixed_versions": [] } ]
+    }
+  ]
+}

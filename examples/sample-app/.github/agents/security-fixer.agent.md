@@ -25,6 +25,8 @@ Goal: every finding ends as FIXED (verified), NOT APPLICABLE (justified), or BLO
 - Scope: module(s) or whole repo. Severity floor if any (e.g. "HIGH and above").
 
 ## Phase 0: triage (no edits)
+Preferred: one command does steps 0 to 4 and prints one table (artifact, CVEs, severity, resolved, BOM manages, fix, verdict):
+`scripts/cve-flow.sh <xray.json or findings.csv> --min-severity <floor>` (add `--insecure` only if the user says the certificate is not yet trusted). Read that table and the `next:` line; the detail files it writes are for scripts, not for you. Use the individual steps below only when the flow fails or you need one artifact's detail.
 0. Xray JSON given: `java scripts/XrayToFindings.java <report.json> findings.csv --min-severity <floor>`. Read only its three summary lines (records in, findings out, components, distinct bumps, no fixed version, not applicable). Findings marked not applicable by Xray's contextual analysis go straight to the exceptions list with Xray's reasoning; they are not fixed first.
 1. From repo root: `scripts/dep-tree.sh` (dumps every project's runtime classpath; Gradle `build/deptree.txt`, Maven `target/deptree.txt`).
 2. `java scripts/CveTriage.java <findings.csv> build/deptree.txt`. Paste the table in your reply. Rows marked ALREADY RESOLVED mean the build already picks a fixed version (Gradle conflict resolution or a BOM); confirm with `scripts/dep-path.sh` and close them as stale scans rather than editing.
