@@ -48,7 +48,8 @@ if [ "$BUILD" = gradle ]; then
     echo "  full list: ./gradlew ${P:-}:dependencyManagement   (managed versions and imported BOMs)"
   elif echo "$REASONS" | grep -qi "constraint"; then echo "  mechanism: Gradle platform/constraint (see the (platform) entry in the path above)"
   else echo "  mechanism: none detected; the requested version wins (direct bump in the catalog)"; fi
-  echo "  next: java scripts/BomFix.java $GA <fixedVersion>   (first BOM release that manages the fix, hop size, collateral)"
+  RES=$(echo "$OUT" | grep -oE "^$G:$A:[A-Za-z0-9.+-]+" | head -1 | awk -F: '{print $3}')
+  echo "  next: java scripts/BomFix.java $GA <fixedVersion>${MODULE:+ --module $MODULE}${RES:+ --resolved $RES}   (BOM vs resolved: stale scan, override, or which BOM release fixes it)"
 else
   PL=""; [ -n "$MODULE" ] && PL="-pl $MODULE"
   # shellcheck disable=SC2086

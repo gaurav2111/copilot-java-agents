@@ -13,7 +13,9 @@ import org.w3c.dom.*;
  * Answers: "which release of the BOM this build declares manages a fixed version of this artifact, and how big is
  * that hop?" Reads BOM POMs from the artifact repository (your mirror), never guesses, never searches the web.
  *
- *   java scripts/BomFix.java <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max 40] [--insecure]
+ *   java scripts/BomFix.java <group:artifact> <fixedVersion> [--module <gradle project>] [--resolved <version>] [--bom g:a:v] [--repo URL] [--max 40] [--insecure]
+ *   --module runs dependencyInsight for that project to learn the version the build actually resolves (Gradle);
+ *   --resolved passes it by hand (Maven, or when you already ran dep-path.sh). With neither, only the BOM is examined.
  *   java scripts/BomFix.java org.apache.tomcat.embed:tomcat-embed-core 10.1.60
  *   java scripts/BomFix.java org.yaml:snakeyaml 2.0 --bom org.springframework.boot:spring-boot-dependencies:2.7.18
  *
@@ -48,8 +50,15 @@ public class BomFix {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 2) { System.err.println("usage: BomFix <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max N]"); System.exit(2); }
-        String[] ga = args[0].split(":"); String fix = args[1]; List<String> boms = new ArrayList<>(); int max = 40;
-        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; case "--insecure": insecure(); break; }
+        String[] ga = args[0].split(":"); String fix = args[1]; List<String> boms = new ArrayList<>(); int max = 40; String module = null; String resolved = null;
+        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; case "--insecure": insecure(); break; case "--module": module = args[++i]; break; case "--resolved": resolved = args[++i]; break; }
+        String[] insight = module != null && resolved == null ? resolvedFromGradle(module, ga[1]) : new String[]{resolved, ""};
+        resolved = insight[0]; String reasons = insight[1];
+        if (resolved != null) {
+            int cmp = compareVersions(resolved, fix);
+            System.out.printf("RESOLVED in the build%s: %s %s%s%n", module != null ? " (" + module + ", runtimeClasspath)" : "", ga[1], resolved, reasons.isEmpty() ? "" : "  [" + reasons + "]");
+            if (cmp >= 0) System.out.println("  VERDICT: already at or above the fix in the build. The scanner report is stale or from another build or module: rebuild, rescan, and compare with XrayToFindings --diff. No build change needed.");
+        } else if (module == null) System.out.println("RESOLVED in the build: unknown (pass --module <project> or --resolved <version>; without it the verdict below is about the BOM only)");
         repo = repo.replaceAll("/+$", "");
         if (boms.isEmpty()) boms = detectBoms();
         if (boms.isEmpty()) { System.out.println("BOMFIX: no BOM or platform declared in this build; " + args[0] + " is not managed, bump it directly to " + fix + "."); return; }
@@ -66,7 +75,14 @@ public class BomFix {
             String managedNow = managedVersion(b[0], b[1], current, ga[0], ga[1], 0);
             System.out.printf("  BOM %s:%s %s manages %s: %s%n", b[0], b[1], current, ga[1], managedNow == null ? "not managed by this BOM (searched its dependencyManagement, parent and imported BOMs two levels deep)" : managedNow);
             if (managedNow == null) continue;
-            if (compareVersions(managedNow, fix) >= 0) { System.out.println("    already at or above the fix; the resolved version in the build must be overridden elsewhere (check dep-path.sh)"); continue; }
+            if (compareVersions(managedNow, fix) >= 0) {
+                if (resolved != null && compareVersions(resolved, fix) < 0)
+                    System.out.printf("    VERDICT: the BOM already manages %s but the build resolves %s. Something overrides the BOM: a version property (%s), a dependencyManagement entry, a constraint, a force, a version written on the dependency, or a BOM imported after this one. Find it: scripts/dep-path.sh %s:%s <module> (selection reason and 'Version catalog / constraints' section). Bumping the BOM will change nothing.%n", managedNow, resolved, Optional.ofNullable(propertyFor(b[0], b[1], current, ga[0], ga[1])).orElse("?"), ga[0], ga[1]);
+                else if (resolved == null)
+                    System.out.println("    the BOM already manages a fixed version; whether the build uses it depends on overrides: rerun with --module <project> to compare with the resolved version");
+                else System.out.println("    consistent: BOM and build both at or above the fix");
+                continue;
+            }
             List<String> versions = availableVersions(b[0], b[1]).stream().filter(v -> compareVersions(v, current) > 0 && !v.matches("(?i).*(SNAPSHOT|M\\d|RC\\d|alpha|beta).*")).sorted(BomFix::compareVersions).collect(Collectors.toList());
             if (versions.isEmpty()) { System.out.println("    no newer release found" + (lastError != null ? " (" + lastError + ")" : " in the repository metadata")); continue; }
             String[] cur = current.split("\\.");
@@ -90,6 +106,25 @@ public class BomFix {
             }
             if (propName != null) System.out.printf("    override property if no acceptable hop: ext['%s'] = '%s'  (Gradle, dependency-management plugin) / <%s>%s</%s> (Maven)%n", propName, fix, propName, fix, propName);
         }
+    }
+
+    /** runs dependencyInsight for the project and returns {resolvedVersion or null, selection reasons} */
+    static String[] resolvedFromGradle(String module, String artifact) {
+        String path = module.startsWith(":") ? module : ":" + module.replace('/', ':');
+        String wrapper = Files.exists(Paths.get("gradlew")) ? (System.getProperty("os.name").toLowerCase().contains("win") ? "gradlew.bat" : "./gradlew") : "gradle";
+        List<String> cmd = new ArrayList<>(List.of(wrapper, "--offline", "-q", "--console=plain", path + ":dependencyInsight", "--dependency", artifact, "--configuration", "runtimeClasspath"));
+        try {
+            Process pr = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            String out = new String(pr.getInputStream().readAllBytes(), StandardCharsets.UTF_8); pr.waitFor();
+            Matcher m = Pattern.compile("(?m)^([\\w.-]+):" + Pattern.quote(artifact) + ":([\\w.+-]+)(?:\\s*\\(([^)]*)\\))?").matcher(out);
+            if (m.find()) {
+                Set<String> reasons = new LinkedHashSet<>(); if (m.group(3) != null) reasons.add(m.group(3));
+                Matcher r = Pattern.compile("(?i)(by constraint|selected by rule|forced|conflict resolution|by ancestor|rejected)").matcher(out); while (r.find()) reasons.add(r.group(1).toLowerCase());
+                return new String[]{m.group(2), String.join(", ", reasons)};
+            }
+            if (out.contains("No dependencies matching")) return new String[]{null, "not on " + path + " runtimeClasspath"};
+            return new String[]{null, "could not parse dependencyInsight output (first line: " + out.lines().findFirst().orElse("") + ")"};
+        } catch (Exception e) { return new String[]{null, "dependencyInsight failed: " + e.getMessage()}; }
     }
 
     // ---------- detection ----------
