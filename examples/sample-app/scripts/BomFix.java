@@ -29,27 +29,34 @@ import org.w3c.dom.*;
  * move with that bump, with the first few named.
  */
 public class BomFix {
-    static final HttpClient HTTP = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+    static final HttpClient HTTP = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).proxy(java.net.ProxySelector.getDefault()).connectTimeout(java.time.Duration.ofSeconds(15)).build();
+    static String lastError = null;   // why the last fetch failed, for the report
     static String repo = Optional.ofNullable(System.getenv("REPO_URL")).orElse("https://repo1.maven.org/maven2");
     static final Map<String, Document> POM_CACHE = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
         if (args.length < 2) { System.err.println("usage: BomFix <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max N]"); System.exit(2); }
         String[] ga = args[0].split(":"); String fix = args[1]; List<String> boms = new ArrayList<>(); int max = 40;
-        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; break; case "--max": max = Integer.parseInt(args[++i]); break; }
+        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; }
         repo = repo.replaceAll("/+$", "");
         if (boms.isEmpty()) boms = detectBoms();
         if (boms.isEmpty()) { System.out.println("BOMFIX: no BOM or platform declared in this build; " + args[0] + " is not managed, bump it directly to " + fix + "."); return; }
-        System.out.printf("BOMFIX %s -> at least %s   repository %s%n", args[0], fix, repo);
+        System.out.printf("BOMFIX %s -> at least %s   repository %s%s%n", args[0], fix, repo, System.getenv("REPO_URL") == null && System.getProperty("bomfix.repoArg") == null ? "  (default; set REPO_URL to your mirror)" : "");
         for (String bom : boms) {
             String[] b = bom.split(":"); if (b.length < 3) { System.out.println("  skip " + bom + " (no version)"); continue; }
             String current = b[2];
+            lastError = null;
+            if (pom(b[0], b[1], current) == null) {
+                System.out.printf("  BOM %s:%s %s: CANNOT READ ITS POM -> %s%n", b[0], b[1], current, lastError == null ? "unknown error" : lastError);
+                System.out.println("    nothing below is evaluated for this BOM. Fix: REPO_URL=https://<mirror>/<repo> (the repository that proxies Maven Central), REPO_USER/REPO_TOKEN if it needs a login, or run from a network that can reach it.");
+                continue;
+            }
             String managedNow = managedVersion(b[0], b[1], current, ga[0], ga[1], 0);
-            System.out.printf("  BOM %s:%s %s manages %s: %s%n", b[0], b[1], current, ga[1], managedNow == null ? "not managed by this BOM" : managedNow);
+            System.out.printf("  BOM %s:%s %s manages %s: %s%n", b[0], b[1], current, ga[1], managedNow == null ? "not managed by this BOM (searched its dependencyManagement, parent and imported BOMs two levels deep)" : managedNow);
             if (managedNow == null) continue;
             if (compareVersions(managedNow, fix) >= 0) { System.out.println("    already at or above the fix; the resolved version in the build must be overridden elsewhere (check dep-path.sh)"); continue; }
             List<String> versions = availableVersions(b[0], b[1]).stream().filter(v -> compareVersions(v, current) > 0 && !v.matches("(?i).*(SNAPSHOT|M\\d|RC\\d|alpha|beta).*")).sorted(BomFix::compareVersions).collect(Collectors.toList());
-            if (versions.isEmpty()) { System.out.println("    no newer release in the repository"); continue; }
+            if (versions.isEmpty()) { System.out.println("    no newer release found" + (lastError != null ? " (" + lastError + ")" : " in the repository metadata")); continue; }
             String[] cur = current.split("\\.");
             Map<String, String> firstPerHop = new LinkedHashMap<>(); int checked = 0; String propName = null;
             for (String v : versions) {
@@ -108,8 +115,11 @@ public class BomFix {
             String u = System.getenv("REPO_USER"), t = System.getenv("REPO_TOKEN");
             if (t != null) rb.header("Authorization", "Basic " + Base64.getEncoder().encodeToString(((u == null ? "token" : u) + ":" + t).getBytes(StandardCharsets.UTF_8)));
             HttpResponse<String> r = HTTP.send(rb.build(), HttpResponse.BodyHandlers.ofString());
-            return r.statusCode() == 200 ? r.body() : null;
-        } catch (Exception e) { return null; }
+            if (r.statusCode() != 200) { lastError = "HTTP " + r.statusCode() + " for " + repo + "/" + path; return null; }
+            String body = r.body();
+            if (body.stripLeading().toLowerCase().startsWith("<!doctype html") || body.stripLeading().toLowerCase().startsWith("<html")) { lastError = "HTML page instead of XML from " + repo + "/" + path + " (login page or wrong REPO_URL?)"; return null; }
+            return body;
+        } catch (Exception e) { lastError = e.getClass().getSimpleName() + ": " + e.getMessage() + " for " + repo + "/" + path; return null; }
     }
     static List<String> availableVersions(String g, String a) {
         String xml = fetch(g.replace('.', '/') + "/" + a + "/maven-metadata.xml");
