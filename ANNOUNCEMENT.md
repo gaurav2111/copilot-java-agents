@@ -3,7 +3,7 @@
 This is a draft; I am still testing it and aim to release a finished version by Diwali.
 
 What is in the pack: 7 agents, 16 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
-13 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
+14 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
 with planted flaws, and 4 documents (README, testing checklist, OpenRewrite adoption plan, roadmap).
 
 The old setup was two agents, planner and implementer, each a 600-line file doing everything: upgrades, CVE fixes,
@@ -125,4 +125,4 @@ from the mode picker when no prompt fits.
 
 The scripts they use, also runnable by hand from the repository root: `compile-errors.sh`, `test-summary.sh`,
 `dep-path.sh`, `dep-tree.sh`, `jdk-check.sh`, `rewrite.sh`, `setup-check.sh`, `log-lint.sh`, `CoverageGaps.java`, `CveTriage.java`,
-`LogAudit.java`, `LogVolume.java`, `XrayToFindings.java`.
+`LogAudit.java`, `LogVolume.java`, `XrayToFindings.java`, `BomFix.java`.

@@ -38,7 +38,7 @@ scripts/
   lib.sh                       build-tool detection (Gradle default, Maven fallback), shared helpers
   compile-errors.sh            compile -> distinct errors only, capped
   test-summary.sh              run tests -> counts + failing test names from JUnit XML
-  dep-path.sh                  how one artifact reaches each project (Gradle dependencyInsight / Maven tree)
+  dep-path.sh                  how one artifact reaches each project, and MANAGED BY: the mechanism and BOM that decide its version
   dep-tree.sh                  dump every project's runtime tree into one file for CveTriage
   jdk-check.sh                 jdeps --jdk-internals, jdeprscan --for-removal (with the module classpath), trouble-spot grep
   classpath-init.gradle        init script giving jdk-check the runtime classpath without build changes
@@ -48,6 +48,7 @@ scripts/
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
   XrayToFindings.java          Xray JSON report (REST or jf audit shape) -> findings.csv; picks the least-breaking fixed version; --diff closes the loop
+  BomFix.java                  which release of the declared BOM manages a fixed version of an artifact: first per hop size, collateral, override property
   LogAudit.java                every log statement with noise/risk flags (loop, hot path, payload, PII, no cause, concat, duplicate), ranked; config findings
   LogVolume.java               log-sink export + LogAudit CSV -> GB/day and $/day per source line, with the action to take
   log-lint.sh                  commit-point gate: PII in logs and System.out block; concatenation, payloads, INFO in loops warn

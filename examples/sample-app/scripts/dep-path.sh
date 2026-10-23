@@ -30,6 +30,25 @@ if [ "$BUILD" = gradle ]; then
   done
   echo "--- Version catalog / constraints mentioning $A:"
   grep -rn --include=libs.versions.toml --include=build.gradle --include=build.gradle.kts -E "$A" . 2>/dev/null | grep -v '/build/' | head -n 8
+  # --- MANAGED BY: which mechanism decided the version (a BOM never appears in the requested-by tree) ---
+  echo "--- MANAGED BY:"
+  BUILD_FILES=$(find . -maxdepth 3 \( -name 'build.gradle' -o -name 'build.gradle.kts' -o -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -not -path '*/build/*' 2>/dev/null)
+  # shellcheck disable=SC2086
+  BOMS=$(grep -hoE "mavenBom[ (]+['\"][^'\"]+['\"]|platform\(['\"][^'\"]+['\"]\)|enforcedPlatform\(['\"][^'\"]+['\"]\)" $BUILD_FILES 2>/dev/null | grep -oE "[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.+-]+" | sort -u)
+  # shellcheck disable=SC2086
+  DM_PLUGIN=$(grep -lE "io\.spring\.dependency-management|spring\.dependency\.management" $BUILD_FILES gradle/libs.versions.toml 2>/dev/null | head -1)
+  BOOT_VER=$(grep -hoE "org\.springframework\.boot['\"]?\)?[^0-9]*version[ (=]*['\"]?[0-9]+\.[0-9]+\.[0-9]+" $BUILD_FILES 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)
+  [ -z "$BOOT_VER" ] && BOOT_VER=$(grep -hoE "^spring-boot\s*=\s*['\"][0-9.]+" gradle/libs.versions.toml 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)
+  REASONS=$(echo "$OUT" | grep -oiE "by constraint|selected by rule|forced|conflict resolution|by ancestor" | sort -u | tr '\n' ' ')
+  [ -n "$REASONS" ] && echo "  selection reasons seen: $REASONS"
+  if [ -n "$BOMS" ]; then echo "$BOMS" | sed 's/^/  declared BOM or platform: /'; fi
+  if [ -n "$DM_PLUGIN" ]; then
+    echo "  mechanism: io.spring.dependency-management plugin (versions imposed by rule; BOM never shows in the tree)"
+    [ -n "$BOOT_VER" ] && [ -z "$(echo "$BOMS" | grep spring-boot-dependencies)" ] && echo "  implied BOM: org.springframework.boot:spring-boot-dependencies:$BOOT_VER (imported automatically by the Spring Boot plugin)"
+    echo "  full list: ./gradlew ${P:-}:dependencyManagement   (managed versions and imported BOMs)"
+  elif echo "$REASONS" | grep -qi "constraint"; then echo "  mechanism: Gradle platform/constraint (see the (platform) entry in the path above)"
+  else echo "  mechanism: none detected; the requested version wins (direct bump in the catalog)"; fi
+  echo "  next: java scripts/BomFix.java $GA <fixedVersion>   (first BOM release that manages the fix, hop size, collateral)"
 else
   PL=""; [ -n "$MODULE" ] && PL="-pl $MODULE"
   # shellcheck disable=SC2086
