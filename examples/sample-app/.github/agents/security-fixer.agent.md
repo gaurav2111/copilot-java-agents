@@ -21,10 +21,11 @@ No git write commands, no downloads: mark `COMMIT POINT: <message>` in `plan.md`
 Goal: every finding ends as FIXED (verified), NOT APPLICABLE (justified), or BLOCKED (owner named). Nothing is silently dropped.
 
 ## Inputs you expect
-- A findings export (CSV with groupId, artifactId, version, cve, severity, fixVersion) or a pasted list. If only a tool's HTML/PDF is available, ask for CSV; do not parse screenshots.
+- A findings export: an Xray JSON report (convert it first, see Phase 0), or a CSV with groupId, artifactId, version, cve, severity, fixVersion, or a pasted list. If only a tool's HTML/PDF is available, ask for CSV; do not parse screenshots. Never read a scanner JSON yourself; it is thousands of lines and the converter reads it for you.
 - Scope: module(s) or whole repo. Severity floor if any (e.g. "HIGH and above").
 
 ## Phase 0: triage (no edits)
+0. Xray JSON given: `java scripts/XrayToFindings.java <report.json> findings.csv --min-severity <floor>`. Read only its three summary lines (records in, findings out, components, distinct bumps, no fixed version, not applicable). Findings marked not applicable by Xray's contextual analysis go straight to the exceptions list with Xray's reasoning; they are not fixed first.
 1. From repo root: `scripts/dep-tree.sh` (dumps every project's runtime classpath; Gradle `build/deptree.txt`, Maven `target/deptree.txt`).
 2. `java scripts/CveTriage.java <findings.csv> build/deptree.txt`. Paste the table in your reply. Rows marked ALREADY RESOLVED mean the build already picks a fixed version (Gradle conflict resolution or a BOM); confirm with `scripts/dep-path.sh` and close them as stale scans rather than editing.
 3. Group findings by the artifact that actually needs to move (several CVEs usually collapse into one bump). Order: CRITICAL/HIGH first, then by "one bump fixes many".
@@ -55,7 +56,7 @@ Goal: every finding ends as FIXED (verified), NOT APPLICABLE (justified), or BLO
 ## Phase 3: verification
 1. `scripts/test-summary.sh <module>` per touched module; compare with baseline.
 2. `scripts/dep-tree.sh` again and re-run `java scripts/CveTriage.java` to prove each finding is now NOT FOUND or ALREADY RESOLVED at the fixed version. Paste the before/after table.
-3. If the scanner has a CLI (e.g. `snyk test`, `./gradlew dependencyCheckAnalyze`, `trivy fs`), run it once at the end and paste the summary line only.
+3. If the scanner has a CLI (e.g. `snyk test`, `./gradlew dependencyCheckAnalyze`, `trivy fs`), run it once at the end and paste the summary line only. With Xray: ask the user for the rescan JSON of the rebuilt artifact and run `java scripts/XrayToFindings.java <after.json> --diff <before.json>`; closed, still open and new, by issue id, is the finish line.
 4. One full build at the end.
 
 ## Guardrails

@@ -35,6 +35,7 @@ an untested class) or any small internal Gradle repository with the pack copied 
 | 10a | `java scripts/LogAudit.java . 12 --csv build/log-statements.csv` | 10 statements; top line `OrderService.java:35` flagged `LOOP,PII`; config findings name `org.hibernate.SQL` and `org.springframework.web` at DEBUG | Zero statements: the tool only scans `src/main/java`; check the path. |
 | 10b | `java scripts/LogVolume.java log-export.csv build/log-statements.csv --price-per-gb 0.50 --top 8` | 4.6 GB/day, top emitter matched to `OrderService.java:35` with action "REMOVE or redact", Hibernate pattern unmatched with action "check config package levels" | Column mismatch with your sink export: send the header row. |
 | 10c | `scripts/log-lint.sh order-service/src/main` | BLOCK on the `System.out` line, WARN on three concatenations, exit 2 | |
+| 9a | `java scripts/XrayToFindings.java <xray.json> findings.csv --min-severity High` | three summary lines (records in, findings out, components, bumps, no fix, not applicable) and a CSV the triage accepts | Zero findings out: the key names differ; edit `keysFor`-style lookups at the top of `toFindings()` in the tool. |
 | 10 | `scripts/jdk-check.sh 21 order-service` | toolchain facts, empty jdeps/jdeprscan sections, trouble spots: `javax\.annotation\.` 1 file | `jdeps: command not found`: JDK bin not on PATH in the IDE terminal. |
 
 ## Stage 3: agents behave (30 min)

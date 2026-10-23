@@ -47,6 +47,7 @@ scripts/
   rewrite-init.gradle          Gradle init script used by rewrite.sh (no build.gradle changes)
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
+  XrayToFindings.java          Xray JSON report (REST or jf audit shape) -> findings.csv; picks the least-breaking fixed version; --diff closes the loop
   LogAudit.java                every log statement with noise/risk flags (loop, hot path, payload, PII, no cause, concat, duplicate), ranked; config findings
   LogVolume.java               log-sink export + LogAudit CSV -> GB/day and $/day per source line, with the action to take
   log-lint.sh                  commit-point gate: PII in logs and System.out block; concatenation, payloads, INFO in loops warn

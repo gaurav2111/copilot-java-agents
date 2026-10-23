@@ -51,9 +51,12 @@ public class CveTriage {
                 }).distinct().limit(3).collect(Collectors.joining(" ; "));
                 boolean viaSpring = hits.stream().anyMatch(h -> h.via.contains("spring-boot") || h.via.contains("org.springframework"));
                 List<String> rv = hits.stream().map(h -> h.resolved).filter(Objects::nonNull).distinct().collect(Collectors.toList());
-                boolean allFixed = !fix.equals("?") && !rv.isEmpty() && rv.stream().allMatch(v -> compareVersions(v, fix) >= 0);
-                boolean someFixed = !fix.equals("?") && rv.stream().anyMatch(v -> compareVersions(v, fix) >= 0);
-                if (allFixed) {
+                boolean noFix = fix == null || fix.isBlank() || fix.equals("?");
+                boolean allFixed = !noFix && !rv.isEmpty() && rv.stream().allMatch(v -> compareVersions(v, fix) >= 0);
+                boolean someFixed = !noFix && rv.stream().anyMatch(v -> compareVersions(v, fix) >= 0);
+                if (noFix) {
+                    strategy = "NO FIXED VERSION published: documented exception with expiry, or replace the library";
+                } else if (allFixed) {
                     strategy = "ALREADY RESOLVED to " + resolved + " everywhere - confirm with dep-path, close as stale/misconfigured scan";
                 } else if (someFixed) {
                     String still = hits.stream().filter(h -> h.resolved != null && compareVersions(h.resolved, fix) < 0)
