@@ -13,7 +13,7 @@ import org.w3c.dom.*;
  * Answers: "which release of the BOM this build declares manages a fixed version of this artifact, and how big is
  * that hop?" Reads BOM POMs from the artifact repository (your mirror), never guesses, never searches the web.
  *
- *   java scripts/BomFix.java <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max 40]
+ *   java scripts/BomFix.java <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max 40] [--insecure]
  *   java scripts/BomFix.java org.apache.tomcat.embed:tomcat-embed-core 10.1.60
  *   java scripts/BomFix.java org.yaml:snakeyaml 2.0 --bom org.springframework.boot:spring-boot-dependencies:2.7.18
  *
@@ -21,6 +21,7 @@ import org.w3c.dom.*;
  * <parent> or <dependencyManagement> imports, and the Spring Boot plugin version when the dependency-management
  * plugin is applied (that implies spring-boot-dependencies at the plugin version).
  * Repository: --repo, else REPO_URL env, else Maven Central. Basic auth via REPO_USER / REPO_TOKEN env.
+ * TLS behind a re-signing proxy: pass -Djavax.net.ssl.trustStore=<store> (the one Gradle uses) to java; --insecure is for a quick test only.
  * Managed version lookup follows <parent> and imported BOMs (scope import) two levels deep, so Jackson under
  * spring-boot-dependencies (via jackson-bom) is found.
  *
@@ -29,7 +30,18 @@ import org.w3c.dom.*;
  * move with that bump, with the first few named.
  */
 public class BomFix {
-    static final HttpClient HTTP = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).proxy(java.net.ProxySelector.getDefault()).connectTimeout(java.time.Duration.ofSeconds(15)).build();
+    static HttpClient HTTP = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).proxy(java.net.ProxySelector.getDefault()).connectTimeout(java.time.Duration.ofSeconds(15)).build();
+    /** --insecure: TESTING ONLY. Skips certificate checks for this read-only metadata fetch when a proxy re-signs TLS and
+     *  the JDK truststore lacks its certificate. The proper fix is -Djavax.net.ssl.trustStore=<the store Gradle uses>. */
+    static void insecure() throws Exception {
+        javax.net.ssl.TrustManager[] trustAll = { new javax.net.ssl.X509TrustManager() {
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+            public void checkClientTrusted(java.security.cert.X509Certificate[] c, String a) { }
+            public void checkServerTrusted(java.security.cert.X509Certificate[] c, String a) { } } };
+        javax.net.ssl.SSLContext ctx = javax.net.ssl.SSLContext.getInstance("TLS"); ctx.init(null, trustAll, new java.security.SecureRandom());
+        HTTP = HttpClient.newBuilder().sslContext(ctx).followRedirects(HttpClient.Redirect.NORMAL).proxy(java.net.ProxySelector.getDefault()).connectTimeout(java.time.Duration.ofSeconds(15)).build();
+        System.out.println("WARNING: --insecure: TLS certificates are NOT verified for this run. Testing only.");
+    }
     static String lastError = null;   // why the last fetch failed, for the report
     static String repo = Optional.ofNullable(System.getenv("REPO_URL")).orElse("https://repo1.maven.org/maven2");
     static final Map<String, Document> POM_CACHE = new HashMap<>();
@@ -37,7 +49,7 @@ public class BomFix {
     public static void main(String[] args) throws Exception {
         if (args.length < 2) { System.err.println("usage: BomFix <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max N]"); System.exit(2); }
         String[] ga = args[0].split(":"); String fix = args[1]; List<String> boms = new ArrayList<>(); int max = 40;
-        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; }
+        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; case "--insecure": insecure(); break; }
         repo = repo.replaceAll("/+$", "");
         if (boms.isEmpty()) boms = detectBoms();
         if (boms.isEmpty()) { System.out.println("BOMFIX: no BOM or platform declared in this build; " + args[0] + " is not managed, bump it directly to " + fix + "."); return; }
