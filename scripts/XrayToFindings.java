@@ -24,6 +24,7 @@ import java.util.stream.*;
  */
 @SuppressWarnings("unchecked")
 public class XrayToFindings {
+    static boolean EXPLAIN = false; static int explained = 0;
     static final Pattern GAV = Pattern.compile("(?:gav://)?([\\w.-]+):([\\w.-]+)(?::([\\w.+-]+))?");
     static final Pattern VER = Pattern.compile("\\d+(?:\\.\\d+)+(?:[-.][\\w.]+)?");
 
@@ -34,6 +35,7 @@ public class XrayToFindings {
             if (args[i].equals("--min-severity")) minSev = args[++i];
             else if (args[i].equals("--diff")) diff = args[++i];
             else if (args[i].equals("--all-versions")) allVersions = true;
+            else if (args[i].equals("--explain")) EXPLAIN = true;
             else out = Paths.get(args[i]);
         }
         List<Finding> findings = load(in);
@@ -98,7 +100,16 @@ public class XrayToFindings {
         // components: either component_versions[] / components[] (REST) or impactedPackageName (jf audit) or component / source_comp_id strings
         List<String[]> comps = new ArrayList<>();   // {group, artifact, version, fixedVersionsJoined}
         Object cv = get(m, "component_versions", "components", "impacted_components");
+        if (cv instanceof Map) cv = List.of(cv);                                   // a single object instead of a list
         String fallbackGav = str(get(m, "source_comp_id", "component", "impacted_artifact"));
+        String deepFixed = joinList(deepFind(m, "fixed_versions", "fixedVersions", "fixed_version", "fixedVersion", "fix_versions", "fix_version", "fixed_in"));
+        if (EXPLAIN && explained < 2) {
+            explained++;
+            System.out.println("EXPLAIN finding #" + explained + ": top-level keys = " + m.keySet());
+            if (cv instanceof List && !((List<Object>) cv).isEmpty() && ((List<Object>) cv).get(0) instanceof Map) System.out.println("  component_versions[0] keys = " + ((Map<String, Object>) ((List<Object>) cv).get(0)).keySet());
+            System.out.println("  component/source_comp_id = '" + fallbackGav + "'   issue id = '" + issueId + "'   severity = '" + severity + "'   cves = " + cves);
+            System.out.println("  fixed versions found anywhere in the finding = " + (deepFixed.isEmpty() ? "NONE (field name not recognised: look at the keys above and add it to deepFind in toFindings)" : deepFixed));
+        }
         if (cv instanceof List && !((List<Object>) cv).isEmpty()) {
             for (Object e : (List<Object>) cv) {
                 if (!(e instanceof Map)) continue;
@@ -119,13 +130,31 @@ public class XrayToFindings {
         if (comps.isEmpty()) return out;
         for (String[] comp : comps) {
             if (comp[1].isEmpty()) continue;
-            String fix = pickFix(comp[3], comp[2]);
+            String fix = pickFix(comp[3].isEmpty() ? deepFixed : comp[3], comp[2]);
+            if (EXPLAIN && explained <= 2) System.out.println("  -> " + comp[0] + ":" + comp[1] + " current '" + comp[2] + "' fixed list '" + (comp[3].isEmpty() ? deepFixed : comp[3]) + "' chosen fix '" + fix + "'");
             for (String cve : cves) {
                 Finding f = new Finding(); f.group = comp[0]; f.artifact = comp[1]; f.version = comp[2]; f.cve = cve; f.severity = severity; f.fix = fix; f.issueId = issueId; f.applicable = applicable; f.summary = summary;
                 out.add(f);
             }
         }
         return out;
+    }
+
+    /** first value under any of these key names, anywhere inside the finding (maps and lists, depth 6) */
+    static Object deepFind(Object node, String... keys) {
+        return deepFind(node, keys, 0);
+    }
+    static Object deepFind(Object node, String[] keys, int depth) {
+        if (depth > 6 || node == null) return null;
+        if (node instanceof Map) {
+            Map<String, Object> mm = (Map<String, Object>) node;
+            Object direct = get(mm, keys);
+            if (direct != null && !(direct instanceof List && ((List<?>) direct).isEmpty())) return direct;
+            for (Object v : mm.values()) { Object r = deepFind(v, keys, depth + 1); if (r != null) return r; }
+        } else if (node instanceof List) {
+            for (Object e : (List<Object>) node) { Object r = deepFind(e, keys, depth + 1); if (r != null) return r; }
+        }
+        return null;
     }
 
     static String applicability(Map<String, Object> m) {
