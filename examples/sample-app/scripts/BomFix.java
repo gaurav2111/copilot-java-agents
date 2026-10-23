@@ -122,7 +122,12 @@ public class BomFix {
                 long added = after.keySet().stream().filter(k -> !before.containsKey(k)).count();
                 System.out.printf("           collateral: %d managed versions move, %d new; e.g. %s%n", moved.size(), added, moved.stream().limit(5).collect(Collectors.joining(", ")));
             }
-            if (propName != null) System.out.printf("    override property if no acceptable hop: ext['%s'] = '%s'  (Gradle, dependency-management plugin) / <%s>%s</%s> (Maven)%n", propName, fix, propName, fix, propName);
+            if (propName == null) propName = propertyFor(b[0], b[1], current, ga[0], ga[1]);
+            if (propName != null) {
+                String bare = propName.replaceAll(" \\(.*\\)$", "");
+                if (propName.contains("imported")) System.out.printf("    override if no acceptable hop: %s is managed through an imported BOM; raise that BOM, e.g. ext['%s'] = '<newer %s version containing %s %s>'  (never pin %s alone: the other artifacts of that BOM would stay behind)%n", ga[1], bare, bare.replace(".version", ""), ga[1], fix, ga[1]);
+                else System.out.printf("    override property if no acceptable hop: ext['%s'] = '%s'  (Gradle, dependency-management plugin) / <%s>%s</%s> (Maven)%n", bare, fix, bare, fix, bare);
+            }
         }
     }
 
@@ -275,9 +280,19 @@ public class BomFix {
         if (parent != null) return managedVersion(text(parent, "groupId"), text(parent, "artifactId"), text(parent, "version"), g, a, depth + 1);
         return null;
     }
+    /** property to override: the artifact's own version property when the BOM lists it directly, else the version
+     *  property of the imported BOM that manages it (e.g. jackson-2-bom.version for jackson-databind under Spring Boot 4) */
     static String propertyFor(String bg, String ba, String bv, String g, String a) {
         Document d = pom(bg, ba, bv); if (d == null) return null;
         for (Element dep : deps(d)) if (text(dep, "groupId").equals(g) && text(dep, "artifactId").equals(a)) { Matcher m = Pattern.compile("\\$\\{([^}]+)\\}").matcher(text(dep, "version")); if (m.find()) return m.group(1); }
+        Map<String, String> props = properties(d, bg, ba, bv);
+        for (Element dep : deps(d)) {
+            if (!"import".equals(text(dep, "scope"))) continue;
+            String ig = resolve(text(dep, "groupId"), props), ia = resolve(text(dep, "artifactId"), props), iv = resolve(text(dep, "version"), props);
+            if (managedVersion(ig, ia, iv, g, a, 1) != null) { Matcher m = Pattern.compile("\\$\\{([^}]+)\\}").matcher(text(dep, "version")); return (m.find() ? m.group(1) : ia + ".version") + " (version of the imported " + ia + ")"; }
+        }
+        Element parent = child(d.getDocumentElement(), "parent");
+        if (parent != null) return propertyFor(text(parent, "groupId"), text(parent, "artifactId"), text(parent, "version"), g, a);
         return null;
     }
     /** all managed g:a -> version (direct entries only; enough for collateral counts) */
