@@ -16,6 +16,10 @@ import org.w3c.dom.*;
  *   java scripts/BomFix.java <group:artifact> <fixedVersion> [--module <gradle project>] [--resolved <version>] [--bom g:a:v] [--repo URL] [--max 40] [--insecure]
  *   --module runs dependencyInsight for that project to learn the version the build actually resolves (Gradle);
  *   --resolved passes it by hand (Maven, or when you already ran dep-path.sh). With neither, only the BOM is examined.
+ *   --via <parentG:parentA:parentV>: the artifact is TRANSITIVE, pulled in by that direct dependency. Instead of BOMs, walk
+ *   newer versions of the parent and report the first one that ships the artifact at or above the fix (depth 2 through
+ *   the parent's own dependencies, versions resolved through its POM hierarchy). That is the aligned fix; a constraint
+ *   on the child is the fallback.
  *   java scripts/BomFix.java org.apache.tomcat.embed:tomcat-embed-core 10.1.60
  *   java scripts/BomFix.java org.yaml:snakeyaml 2.0 --bom org.springframework.boot:spring-boot-dependencies:2.7.18
  *
@@ -50,8 +54,8 @@ public class BomFix {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 2) { System.err.println("usage: BomFix <group:artifact> <fixedVersion> [--bom g:a:v] [--repo URL] [--max N]"); System.exit(2); }
-        String[] ga = args[0].split(":"); String fix = args[1]; List<String> boms = new ArrayList<>(); int max = 40; String module = null; String resolved = null;
-        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; case "--insecure": insecure(); break; case "--module": module = args[++i]; break; case "--resolved": resolved = args[++i]; break; }
+        String[] ga = args[0].split(":"); String fix = args[1]; List<String> boms = new ArrayList<>(); int max = 40; String module = null; String resolved = null; String via = null;
+        for (int i = 2; i < args.length; i++) switch (args[i]) { case "--bom": boms.add(args[++i]); break; case "--repo": repo = args[++i]; System.setProperty("bomfix.repoArg", "1"); break; case "--max": max = Integer.parseInt(args[++i]); break; case "--insecure": insecure(); break; case "--module": module = args[++i]; break; case "--resolved": resolved = args[++i]; break; case "--via": via = args[++i]; break; }
         String[] insight = module != null && resolved == null ? resolvedFromGradle(module, ga[1]) : new String[]{resolved, ""};
         resolved = insight[0]; String reasons = insight[1];
         if (resolved != null) {
@@ -60,6 +64,7 @@ public class BomFix {
             if (cmp >= 0) System.out.println("  VERDICT: already at or above the fix in the build. The scanner report is stale or from another build or module: rebuild, rescan, and compare with XrayToFindings --diff. No build change needed.");
         } else if (module == null) System.out.println("RESOLVED in the build: unknown (pass --module <project> or --resolved <version>; without it the verdict below is about the BOM only)");
         repo = repo.replaceAll("/+$", "");
+        if (via != null) { parentMode(via, ga, fix, resolved, max); return; }
         if (boms.isEmpty()) boms = detectBoms();
         if (boms.isEmpty()) { System.out.println("BOMFIX: no BOM or platform declared in this build; " + args[0] + " is not managed, bump it directly to " + fix + "."); return; }
         System.out.printf("BOMFIX %s -> at least %s   repository %s%s%n", args[0], fix, repo, System.getenv("REPO_URL") == null && System.getProperty("bomfix.repoArg") == null ? "  (default; set REPO_URL to your mirror)" : "");
@@ -138,6 +143,61 @@ public class BomFix {
             if (out.contains("No dependencies matching")) return new String[]{null, "not on " + path + " runtimeClasspath"};
             return new String[]{null, "could not parse dependencyInsight output (first line: " + out.lines().findFirst().orElse("") + ")"};
         } catch (Exception e) { return new String[]{null, "dependencyInsight failed: " + e.getMessage()}; }
+    }
+
+    // ---------- parent (via) mode ----------
+    static void parentMode(String via, String[] ga, String fix, String resolved, int max) {
+        String[] pv = via.split(":"); if (pv.length < 3) { System.out.println("--via needs group:artifact:version"); return; }
+        String pg = pv[0], pa = pv[1], pcur = pv[2];
+        System.out.printf("PARENT %s:%s %s (direct dependency) ships %s: %s%n", pg, pa, pcur, ga[1], Optional.ofNullable(shippedVersion(pg, pa, pcur, ga[0], ga[1], 0, new HashSet<>())).orElse("not found within depth 2" + (lastError != null ? " (" + lastError + ")" : "")));
+        if (resolved != null && compareVersions(resolved, fix) >= 0) { System.out.println("  VERDICT: already at or above the fix in the build; stale scan."); return; }
+        List<String> versions = availableVersions(pg, pa).stream().filter(v -> compareVersions(v, pcur) > 0 && !v.matches("(?i).*(SNAPSHOT|M\\d|RC\\d|alpha|beta).*")).sorted(BomFix::compareVersions).collect(Collectors.toList());
+        if (versions.isEmpty()) { System.out.println("  no newer release of the parent" + (lastError != null ? " (" + lastError + ")" : "") + "; fallback: constraint on " + ga[0] + ":" + ga[1] + " >= " + fix + ", flagged as debt"); return; }
+        Map<String, List<String>> lines = new LinkedHashMap<>();
+        for (String v : versions) { String[] parts = v.split("\\."); lines.computeIfAbsent(parts[0] + "." + (parts.length > 1 ? parts[1] : "0"), k -> new ArrayList<>()).add(v); }
+        String[] cur = pcur.split("\\."); Map<String, String> firstPerHop = new LinkedHashMap<>(); int checked = 0; boolean budgetHit = false;
+        for (Map.Entry<String, List<String>> line : lines.entrySet()) {
+            List<String> rel = line.getValue(); String newest = rel.get(rel.size() - 1); String hop = hop(cur, newest.split("\\."));
+            if (firstPerHop.containsKey(hop)) continue;
+            if (checked++ >= max) { budgetHit = true; break; }
+            String shippedNewest = shippedVersion(pg, pa, newest, ga[0], ga[1], 0, new HashSet<>());
+            if (shippedNewest == null || compareVersions(shippedNewest, fix) < 0) continue;
+            String found = newest, sv = shippedNewest;
+            for (String v : rel) { if (checked++ >= max) { budgetHit = true; break; } String x = shippedVersion(pg, pa, v, ga[0], ga[1], 0, new HashSet<>()); if (x != null && compareVersions(x, fix) >= 0) { found = v; sv = x; break; } }
+            firstPerHop.put(hop, found + " (ships " + ga[1] + " " + sv + ")");
+            if (firstPerHop.size() == 3) break;
+        }
+        if (firstPerHop.isEmpty()) System.out.println("  no release of the parent ships " + ga[1] + " >= " + fix + (budgetHit ? " within " + max + " POM reads (rerun with --max " + max * 3 + ")" : "") + "; fallback: constraint on " + ga[0] + ":" + ga[1] + " >= " + fix + " next to the parent, flagged as debt until the parent catches up");
+        for (Map.Entry<String, String> e : firstPerHop.entrySet())
+            System.out.printf("  %-6s hop: bump %s:%s %s -> %s%s%n", e.getKey(), pg, pa, pcur, e.getValue(), e.getKey().equals("patch") ? "   <- proposed: fixes the child by alignment, no pin" : "   (needs a decision)");
+    }
+    /** version of g:a that parent pg:pa:pv ships, searching its direct dependencies and (depth 2) their dependencies; versions resolved through the POM hierarchy */
+    static String shippedVersion(String pg, String pa, String pv, String g, String a, int depth, Set<String> seen) {
+        if (depth > 2 || !seen.add(pg + ":" + pa + ":" + pv)) return null;
+        Document d = pom(pg, pa, pv); if (d == null) return null;
+        Map<String, String> props = properties(d, pg, pa, pv);
+        List<Element> direct = directDeps(d);
+        for (Element dep : direct) {
+            if (text(dep, "groupId").equals(g) && text(dep, "artifactId").equals(a)) {
+                String v = resolve(text(dep, "version"), props);
+                if (v.isEmpty() || v.contains("$")) { String mv = managedVersion(pg, pa, pv, g, a, 0); if (mv != null) v = mv; }
+                return v.isEmpty() ? null : v;
+            }
+        }
+        for (Element dep : direct) {
+            String scope = text(dep, "scope"); if (scope.equals("test") || scope.equals("provided") || "true".equals(text(dep, "optional"))) continue;
+            String dg = resolve(text(dep, "groupId"), props), da = resolve(text(dep, "artifactId"), props), dv = resolve(text(dep, "version"), props);
+            if (dv.isEmpty() || dv.contains("$")) { String mv = managedVersion(pg, pa, pv, dg, da, 0); if (mv == null) continue; dv = mv; }
+            String r = shippedVersion(dg, da, dv, g, a, depth + 1, seen); if (r != null) return r;
+        }
+        Element parent = child(d.getDocumentElement(), "parent");
+        if (parent != null && depth == 0) return shippedVersion(text(parent, "groupId"), text(parent, "artifactId"), text(parent, "version"), g, a, depth + 1, seen);
+        return null;
+    }
+    static List<Element> directDeps(Document d) {
+        List<Element> out = new ArrayList<>(); Element ds = child(d.getDocumentElement(), "dependencies"); if (ds == null) return out;
+        NodeList ch = ds.getChildNodes(); for (int i = 0; i < ch.getLength(); i++) if (ch.item(i) instanceof Element && ch.item(i).getNodeName().equals("dependency")) out.add((Element) ch.item(i));
+        return out;
     }
 
     // ---------- detection ----------

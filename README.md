@@ -48,8 +48,10 @@ scripts/
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
   XrayToFindings.java          Xray JSON report (REST or jf audit shape) -> findings.csv; picks the least-breaking fixed version; --diff closes the loop
-  BomFix.java                  resolved vs BOM-managed vs fix: stale scan, override, or the first BOM release per hop size that fixes it, with collateral
-  cve-flow.sh                  one command: report -> findings -> tree -> triage -> BOM verdict per artifact, one table (build/cve/flow-report.md)
+  BomFix.java                  resolved vs BOM-managed vs fix: stale scan, override, or the first BOM release per hop size that fixes it, with collateral;
+                               --via: for a transitive, the first release of its direct parent that ships a fixed child (aligned fix instead of a pin)
+  cve-flow.sh                  one command: report -> findings -> tree -> triage -> verdict per artifact (BOM bump, parent bump for transitives,
+                               override, stale scan, no fix); --module scopes to the module a report covers; table in build/cve/flow-report.md
   LogAudit.java                every log statement with noise/risk flags (loop, hot path, payload, PII, no cause, concat, duplicate), ranked; config findings
   LogVolume.java               log-sink export + LogAudit CSV -> GB/day and $/day per source line, with the action to take
   log-lint.sh                  commit-point gate: PII in logs and System.out block; concatenation, payloads, INFO in loops warn
