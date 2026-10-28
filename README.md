@@ -58,6 +58,8 @@ scripts/
   log-lint.sh                  commit-point gate: PII in logs and System.out block; concatenation, payloads, INFO in loops warn
 ```
 
+Every prompt with the exact line to type and the commands it runs underneath: `PROMPTS.md`.
+
 ## What each piece does, and how you use it
 
 Copilot loads customisation files at different moments. The pack is split along those moments so that each request
