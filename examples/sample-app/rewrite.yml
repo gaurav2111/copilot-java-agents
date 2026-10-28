@@ -92,10 +92,23 @@ displayName: "Logging hygiene: placeholders, causes, loggers, System.out, guards
 description: >
   Mechanical logging fixes that change no behaviour: string concatenation to SLF4J placeholders, loggers named for the
   enclosing class and private, exceptions logged with their cause, printStackTrace and System.out/err to logger calls,
-  unnecessary isDebugEnabled guards removed and expensive statements guarded, catch-block levels. Used by the
-  log-engineer agent as Phase 1. Artifact: org.openrewrite.recipe:rewrite-logging-frameworks (MSAL).
+  unnecessary isDebugEnabled guards removed, toString() stripped from arguments, catch-block levels. This is
+  Slf4jBestPractices without WrapExpensiveLogStatementsInConditionals: that recipe wraps INFO calls in isInfoEnabled()
+  guards, which is clutter at the production level; an expensive argument is removed or moved to DEBUG by hand instead.
+  Used by the log-engineer agent as Phase 1. Artifact: org.openrewrite.recipe:rewrite-logging-frameworks (MSAL).
 recipeList:
-  - org.openrewrite.java.logging.slf4j.Slf4jBestPractices
+  - org.openrewrite.java.logging.ArgumentArrayToVarargs
+  - org.openrewrite.java.logging.slf4j.LoggersNamedForEnclosingClass
+  - org.openrewrite.java.logging.slf4j.Slf4jLogShouldBeConstant
+  - org.openrewrite.java.logging.slf4j.StringFormatToParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.MessageFormatToParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.ParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.CompleteExceptionLogging
+  - org.openrewrite.java.logging.CatchBlockLogLevel
+  - org.openrewrite.java.logging.ChangeLoggersToPrivate
+  - org.openrewrite.java.logging.slf4j.MatchIsLogLevelEnabledWithLogStatements
+  - org.openrewrite.java.logging.slf4j.StripToStringFromArguments
+  - org.openrewrite.java.logging.slf4j.RemoveUnnecessaryLogLevelGuards
   - org.openrewrite.java.logging.SystemPrintToLogging:
       addLogger: true
       loggingFramework: SLF4J

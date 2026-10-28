@@ -43,7 +43,7 @@ scripts/
   jdk-check.sh                 jdeps --jdk-internals, jdeprscan --for-removal (with the module classpath), trouble-spot grep
   classpath-init.gradle        init script giving jdk-check the runtime classpath without build changes
   setup-check.sh               validates prerequisites + every script against the repo; writes SETUP-REPORT.md
-  rewrite.sh                   OpenRewrite dry run/apply without touching the build; prints patch summary
+  rewrite.sh                   OpenRewrite dry run/apply without touching the build; prints patch summary; --module <dir> applies one module's part only
   rewrite-init.gradle          Gradle init script used by rewrite.sh (no build.gradle changes)
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy

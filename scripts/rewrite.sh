@@ -3,7 +3,10 @@
 # ALWAYS run from the repository root: the plugin parses the whole build and runs recipes once over all modules.
 # Scope with preconditions in rewrite.yml, or revert out-of-scope modules afterwards with `git checkout -- <module>`.
 #
-# Usage: scripts/rewrite.sh <recipe> [recipeArtifact[,artifact2]] [--apply] [-- extra build args]
+# Usage: scripts/rewrite.sh <recipe> [recipeArtifact[,artifact2]] [--apply] [--module <dir>] [-- extra build args]
+#   --module <dir>   keep only the changes under that directory (one module of a multi-module build). The recipe still
+#                    parses the whole build; with --apply the filtered patch is applied to the working tree, nothing
+#                    outside the module is touched, no revert needed afterwards.
 #   scripts/rewrite.sh org.openrewrite.java.migrate.UpgradeToJava21 org.openrewrite.recipe:rewrite-migrate-java
 #   scripts/rewrite.sh com.acme.SpringBoot3Upgrade org.openrewrite.recipe:rewrite-spring,org.openrewrite.recipe:rewrite-migrate-java --apply
 #   scripts/rewrite.sh org.openrewrite.java.RemoveUnusedImports            # core recipe, no artifact needed
@@ -17,9 +20,18 @@ source "$(dirname "$0")/lib.sh"; detect_build_tool
 RECIPE="${1:?recipe name required}"; shift
 ARTIFACTS=""
 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then ARTIFACTS="$1"; shift; fi
-GOAL="dryRun"
-if [ "${1:-}" = "--apply" ]; then GOAL="run"; shift; fi
-[ "${1:-}" = "--" ] && shift
+GOAL="dryRun"; MODULE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --apply) GOAL="run"; shift;;
+    --module) MODULE="${2:?--module needs a directory}"; MODULE="${MODULE%/}"; [ "$MODULE" = "." ] && MODULE=""; shift 2;;   # "." = whole build
+    --) shift; break;;
+    *) break;;
+  esac
+done
+[ -n "$MODULE" ] && [ ! -d "$MODULE" ] && { echo "no such module directory: $MODULE"; exit 2; }
+APPLY_FILTERED=0
+if [ "$GOAL" = run ] && [ -n "$MODULE" ]; then GOAL="dryRun"; APPLY_FILTERED=1; fi   # dry run, then apply only the module's part
 
 ARTIFACT_VERSION="${REWRITE_RECIPE_VERSION:-RELEASE}"      # RELEASE / latest.release = newest your mirror can see
 COORDS=""
@@ -35,7 +47,7 @@ fi
 # Remove patches and data tables from earlier runs so a "no changes" run is never misread as the previous run's result.
 find . \( -path '*/build/reports/rewrite/rewrite.patch' -o -path '*/target/rewrite/rewrite.patch' \) -delete 2>/dev/null
 find . \( -path '*/build/reports/rewrite/datatables' -o -path '*/target/rewrite/datatables' \) -type d -prune -exec rm -rf {} + 2>/dev/null
-echo "openrewrite $GOAL [$BUILD] recipe=$RECIPE artifacts=${COORDS:-<built-in>}"
+echo "openrewrite $GOAL [$BUILD] recipe=$RECIPE artifacts=${COORDS:-<built-in>}${MODULE:+ module=$MODULE}"
 if [ "$BUILD" = gradle ]; then
   TASK="rewriteDryRun"; [ "$GOAL" = run ] && TASK="rewriteRun"
   PLUGIN_VERSION="${REWRITE_PLUGIN_VERSION:-7.39.0}"   # 7.40+ need rewrite-bom 8.91 which is Code Genome only
@@ -86,7 +98,23 @@ if [ "$GOAL" = "dryRun" ]; then
     grep '^diff --git' "$p" | sed 's#^diff --git a/##; s# b/.*##' | awk -F/ '{print ($0 ~ /\//) ? $1 : "(root)"}' | sort | uniq -c | sort -rn | head -n 15
     echo "  (per top-level module; list files with: grep '^diff --git' $p)"
     grep -q 'Unable to download POM\|Failed to parse or resolve\|~~(' "$p" && echo "  WARNING: unresolved types/POMs in patch markers; recipe matches may be incomplete"
+    if [ -n "$MODULE" ]; then
+      inside=$(grep -c "^diff --git a/$MODULE/" "$p"); echo "  in module $MODULE: $inside file(s); outside (ignored): $((files - inside))"
+    fi
   done
+  if [ "$APPLY_FILTERED" -eq 1 ]; then
+    applied=0
+    for p in $PATCHES; do
+      f="${p%.patch}-$(echo "$MODULE" | tr '/' '_').patch"
+      # keep only the hunks whose file is under the module; a unified diff is split at each 'diff --git' header
+      awk -v M="$MODULE/" '/^diff --git /{keep = index($0, "diff --git a/" M) == 1} keep' "$p" > "$f"
+      [ -s "$f" ] || continue
+      if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git apply --whitespace=nowarn "$f"; else patch -p1 -s < "$f"; fi \
+        && { echo "--- applied to $MODULE: $(grep -c '^diff --git' "$f") file(s) from $f"; applied=1; } \
+        || { echo "--- APPLY FAILED for $f (working tree may be partially changed; inspect it)"; exit 1; }
+    done
+    [ "$applied" -eq 0 ] && echo "--- nothing to apply under $MODULE"
+  fi
 fi
 echo "--- data tables (CSV) if any:"; echo "${TABLES:-none}"
 exit "$STATUS"

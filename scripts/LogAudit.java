@@ -32,7 +32,7 @@ public class LogAudit {
     static final Pattern METHOD_HOT = Pattern.compile("@(Scheduled|KafkaListener|JmsListener|RabbitListener|SqsListener|EventListener|Around|Before|After)\\b");
     static final Pattern CLASS_HOT = Pattern.compile("\\b(class|record)\\s+\\w*(Filter|Interceptor|Repository|Dao|Cache|Listener|Consumer|Handler|HealthIndicator|Aspect|Advice|Converter|Serializer|Deserializer)\\b");
     static final Pattern PII = Pattern.compile("(?i)\\b(password|passwd|pwd|secret|token|apikey|api_key|authorization|bearer|cookie|session[_-]?id|ssn|social[_-]?security|credit[_-]?card|cardnumber|card_number|cvv|iban|account[_-]?number|email|e-mail|phone|mobile|dob|date[_-]?of[_-]?birth|salary|address)\\b");
-    static final Pattern PAYLOAD = Pattern.compile("(\\btoString\\(\\)|\\b(request|response|body|entity|dto|payload|headers|result|results|items|records|rows|json|xml)\\b)");
+    static final Pattern PAYLOAD = Pattern.compile("(\\bto(String|List|Map|Json|Xml)\\(\\)|\\.(get)?(lines|items|entries|body|payload|content|elements)\\(\\)|\\b(request|response|body|entity|dto|payload|headers|result|results|items|records|rows|json|xml)\\b)");
     static final Pattern ENTRYEXIT = Pattern.compile("(?i)^\\s*\"?\\s*(entering|exiting|enter |exit |start of|end of|called|invoked|begin |finished |->|<-|\\[start\\]|\\[end\\])");
 
     static final class Stmt {
@@ -120,7 +120,7 @@ public class LogAudit {
                 if (classHot || methodHot) s.flags.add("HOT");
                 if (s.msg != null && isConcat(call)) s.flags.add("CONCAT");
                 if (PII.matcher(argsPart).find()) s.flags.add("PII");
-                if (PAYLOAD.matcher(argsPart.replaceFirst("\"[^\"]*\"", "")).find() || (s.msg != null && PAYLOAD.matcher(s.msg).find() && argsPart.contains(","))) s.flags.add("PAYLOAD");
+                if (PAYLOAD.matcher(argsPart.replaceFirst("\"[^\"]*\"", "").replaceAll("[\\w.()]*\\.(size|length|count)\\(\\)", "n")).find() || (s.msg != null && PAYLOAD.matcher(s.msg).find() && argsPart.contains(","))) s.flags.add("PAYLOAD");
                 if (!catches.isEmpty() && (s.level.equals("ERROR") || s.level.equals("WARN"))) {
                     String var = (String) catches.peek()[1];
                     String lastArg = argsPart.replaceAll("\\s+", "").replaceAll("\\)+;?$", "");

@@ -12,7 +12,7 @@
 - Compile and show only errors: `scripts/compile-errors.sh <module>`
 - Run tests and show only failures: `scripts/test-summary.sh <module> [TestClassPattern]`
 - Dependency reach of an artifact: `scripts/dep-path.sh <groupId>:<artifactId> [module]`
-- OpenRewrite dry run / apply (from the repo root only): `scripts/rewrite.sh <recipe> <recipeArtifact> [--apply]`
+- OpenRewrite dry run / apply (from the repo root only): `scripts/rewrite.sh <recipe> <recipeArtifact> [--apply] [--module <dir>]` (`--module` keeps the change inside one module of a multi-module build)
 - Full dependency tree for CVE triage: `scripts/dep-tree.sh` then `java scripts/CveTriage.java <findings.csv> build/deptree.txt`
 - Coverage gaps: `java scripts/CoverageGaps.java "**" 70 15` after `./gradlew --offline -q :<module>:test :<module>:jacocoTestReport`
 - Always offline (`--offline` / `-o`) and per project (`:<module>:task`; Maven `-pl <module> -am`). Run the whole build at most once, at the end.

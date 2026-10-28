@@ -2,17 +2,17 @@
 
 ## Stack
 <!-- FILL IN per repository. One line each. Delete lines that do not apply. -->
-- Build: Gradle multi-project, wrapper `./gradlew`, version catalog `gradle/libs.versions.toml`. Java 21 bytecode (`options.release`), no toolchain block. Spring Boot 2.7.18.
+- Build: Gradle multi-project, wrapper `./gradlew`, version catalog `gradle/libs.versions.toml`. Java <CURRENT_JAVA> (target <TARGET_JAVA>). Spring Boot <VERSION>.
   (Maven repositories: same scripts work; they detect `pom.xml` and use `./mvnw`.)
 - Tests: JUnit 5, Mockito, AssertJ. Integration tests end in `*IT` and run in the `integrationTest` task (Maven: failsafe). Coverage: JaCoCo with XML report enabled.
-- Projects: `:common` (shared library), `:order-service` (Spring Boot REST app), `:legacy-reports` (library, still on JUnit 4 + Hamcrest).
-- Internal libraries: none (sample project).
+- Projects: `:module-a` (API), `:module-b` (domain), `:module-c` (persistence), `:module-d` (batch). See `MODULES.md` if present.
+- Internal libraries: `com.example.*` (your internal group id) artifacts come from the internal mirror; never replace them with public equivalents.
 
 ## Commands (use these, never raw Gradle/Maven output; all run from the repo root)
 - Compile and show only errors: `scripts/compile-errors.sh <module>`
 - Run tests and show only failures: `scripts/test-summary.sh <module> [TestClassPattern]`
 - Dependency reach of an artifact: `scripts/dep-path.sh <groupId>:<artifactId> [module]`
-- OpenRewrite dry run / apply (from the repo root only): `scripts/rewrite.sh <recipe> <recipeArtifact> [--apply]`
+- OpenRewrite dry run / apply (from the repo root only): `scripts/rewrite.sh <recipe> <recipeArtifact> [--apply] [--module <dir>]` (`--module` keeps the change inside one module of a multi-module build)
 - Full dependency tree for CVE triage: `scripts/dep-tree.sh` then `java scripts/CveTriage.java <findings.csv> build/deptree.txt`
 - Coverage gaps: `java scripts/CoverageGaps.java "**" 70 15` after `./gradlew --offline -q :<module>:test :<module>:jacocoTestReport`
 - Always offline (`--offline` / `-o`) and per project (`:<module>:task`; Maven `-pl <module> -am`). Run the whole build at most once, at the end.

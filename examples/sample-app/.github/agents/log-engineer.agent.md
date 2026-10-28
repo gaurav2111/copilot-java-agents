@@ -40,11 +40,15 @@ price per GB if the policy does not say, whether the sink export is available, w
 runbooks or alerts must be preserved (ask for the list), and the structured format if moving to JSON. Wait.
 
 ## Phase 1: mechanical fixes by recipe (own COMMIT POINT)
-`scripts/rewrite.sh com.example.LoggingHygiene org.openrewrite.recipe:rewrite-logging-frameworks` dry run from the
-root, read the per-module counts, apply after a go. The bundle covers: string concatenation to placeholders, loggers
-named for the enclosing class and made private, exceptions logged with their cause, `printStackTrace` and
-`System.out`/`err` to logger calls, unnecessary `isDebugEnabled` guards removed and expensive ones added, catch-block
-levels. These change no message texts the sink groups on except where concatenation made the text unstable anyway.
+`scripts/rewrite.sh com.example.LoggingHygiene org.openrewrite.recipe:rewrite-logging-frameworks --module <module>` dry run from the
+root, read the "in module / outside" counts, then after a go run the same command with `--apply`: only the module's
+part of the patch is applied, nothing outside it changes. The bundle covers: string concatenation to placeholders,
+loggers named for the enclosing class and made private, exceptions logged with their cause, `printStackTrace` and
+`System.out`/`err` to logger calls, `toString()` stripped from arguments, unnecessary `isDebugEnabled` guards removed,
+catch-block levels. It does not wrap INFO calls in `isInfoEnabled()` guards (clutter at the production level); an
+expensive argument is removed or moved to DEBUG in Phase 2. A `System.out` of a whole object becomes an INFO with a
+payload: Phase 2 (noise) deals with it. Message texts the sink groups on do not change except where concatenation made
+the text unstable anyway.
 COMMIT POINT: `refactor(logging): apply LoggingHygiene recipes (<n> files)`.
 
 ## Phase 2: fix (one COMMIT POINT per theme: config, PII, levels, noise, messages)
@@ -58,7 +62,7 @@ Work down the ranked list from LogVolume if present, else from LogAudit, and app
 - **Levels corrected**: INFO in loops or hot paths to DEBUG; entry and exit tracing removed or DEBUG; a catch block that handles the error logs WARN, one that cannot handle it logs ERROR with the cause or rethrows; nothing above INFO for expected business outcomes.
 - **Messages refactored**: stable text that the sink can group on, placeholders for every variable, the identifiers a support engineer searches for (order id, customer id, correlation id), no "Entering", no "called", no exclamation marks, no stack traces at INFO. A reworded message is a new line in the sink: list every rewording in the report.
 - **Alert and runbook references**: never change a message text in the preserved list; change its level only with a decision in `decisions.md`.
-Each theme: edit, `scripts/compile-errors.sh`, `scripts/log-lint.sh`, targeted tests, tick the step with the new audit counts, COMMIT POINT.
+Each theme: edit, `scripts/compile-errors.sh <module>`, `scripts/log-lint.sh <module>`, targeted tests, tick the step with the new audit counts, COMMIT POINT.
 
 ## Phase 3: add (one COMMIT POINT per class or boundary)
 Only where the policy says a log belongs and the audit shows it missing:
