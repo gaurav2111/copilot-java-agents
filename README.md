@@ -50,7 +50,7 @@ scripts/
   XrayToFindings.java          Xray JSON report (REST or jf audit shape) -> findings.csv; one row per artifact+CVE (newest version seen, highest fix); picks the least-breaking fixed version; --diff closes the loop
   BomFix.java                  resolved vs BOM-managed vs fix: stale scan, override, or the first BOM release per hop size that fixes it, with collateral;
                                --via: for a transitive, the first release of its direct parent that ships a fixed child (aligned fix instead of a pin)
-  cve-flow.sh                  one command: report -> findings -> tree -> triage -> verdict per artifact (BOM bump, parent bump for transitives,
+  cve-flow.sh                  one command: report -> findings -> tree -> triage -> verdict per artifact with the delta policy column (BOM bump, parent bump for transitives,
                                override, stale scan, no fix); --module scopes to the module a report covers; table in build/cve/flow-report.md
   LogAudit.java                every log statement with noise/risk flags (loop, hot path, payload, PII, no cause, concat, duplicate), ranked; config findings
   LogVolume.java               log-sink export + LogAudit CSV -> GB/day and $/day per source line, with the action to take
@@ -114,6 +114,7 @@ JUnit 4 + Hamcrest module, and an untested `PricingEngine`. All Stage 2 scripts 
 5. Make sure your artifact mirror (Nexus/Artifactory) proxies the Gradle Plugin Portal and Maven Central for `org.openrewrite.*`. OpenRewrite must also resolve **every** project dependency to parse sources; a module that only builds inside CI will not parse locally.
 6. Open Copilot Chat in IntelliJ, switch to Agent mode, and check the mode picker lists `planner`, `upgrader`, ... If not, see "Client support" below.
 7. Smoke test on a small module: `/plan upgrade <module> to Java 21`, read the plan, then switch to `upgrader`. For the docs agent: `/document :<module> | readme`.
+8. Optional, for `/fix-cves`: set the team's upgrade-delta policy (`- cve-delta:` line in `.github/AGENT-RULES.md`; default patch=apply, minor=ask, major=separate-task) and, if your scanner offers an MCP server, connect it so the agent can refresh "no fixed version" rows live: `docs/MCP-SETUP.md`.
 
 ## How a task flows (protocol in `.github/AGENT-PROTOCOL.md`)
 

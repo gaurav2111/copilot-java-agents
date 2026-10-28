@@ -19,6 +19,13 @@ Free-text boundaries use `- never:` and rely on the agent reading them.
 <!-- - never: add a dependency whose groupId is not on the approved list in docs/approved-dependencies.md -->
 <!-- - never: change a public REST contract (path, status code, response shape) without a ticket id in the plan -->
 
+## 1a. Upgrade-delta policy for CVE fixes (read by `scripts/cve-flow.sh` and the security-fixer)
+One line, three classes. The class is the size of the version hop the fix needs, measured on the thing that actually
+changes: the BOM release, the direct dependency, or the parent of a transitive. Actions: `apply` (goes into the plan
+without a question), `ask` (a G1 question), `separate-task` (never changed inside /fix-cves; filed as an upgrade task
+with the facts attached). `scripts/cve-flow.sh --delta ...` overrides this line for one run.
+- cve-delta: patch=apply, minor=ask, major=separate-task
+
 ## 2. Standing instructions (always followed; they shape every plan)
 Use `- always:`. These go into `facts.md` as constraints and into every `plan.md` as a step or a check.
 
