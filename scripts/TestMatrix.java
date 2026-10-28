@@ -197,9 +197,10 @@ public class TestMatrix {
     }
     static List<String[]> testMethods(String src) {
         List<String[]> out = new ArrayList<>(); String sh = shadow(src);
-        Matcher m = Pattern.compile("(?s)((?:@\\w+(?:\\([^)]*\\))?\\s*)+)\\s*(?:public\\s+|protected\\s+|private\\s+)?(?:static\\s+)?(?:final\\s+)?[\\w<>\\[\\]]+\\s+(\\w+)\\s*\\([^)]*\\)\\s*(?:throws[^{]*)?\\{").matcher(src);
+        // matched on the shadow (literal contents blanked) so parentheses and braces inside annotation strings do not break the match; text is taken from src at the same offsets
+        Matcher m = Pattern.compile("(?s)((?:@\\w+(?:\\([^)]*\\))?\\s*)+)\\s*(?:public\\s+|protected\\s+|private\\s+)?(?:static\\s+)?(?:final\\s+)?[\\w<>\\[\\]]+\\s+(\\w+)\\s*\\([^)]*\\)\\s*(?:throws[^{]*)?\\{").matcher(sh);
         while (m.find()) {
-            String ann = m.group(1); if (!ann.contains("@Test") && !ann.contains("@ParameterizedTest") && !ann.contains("@RepeatedTest") && !ann.contains("@TestFactory")) continue;
+            String ann = src.substring(m.start(1), m.end(1)); if (!ann.contains("@Test") && !ann.contains("@ParameterizedTest") && !ann.contains("@RepeatedTest") && !ann.contains("@TestFactory")) continue;
             int end = m.end() + body(sh, m.end()).length();
             out.add(new String[]{m.group(2), ann + src.substring(m.end(), Math.min(end, src.length()))});
         }

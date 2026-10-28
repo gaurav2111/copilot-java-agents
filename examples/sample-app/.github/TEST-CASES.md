@@ -39,7 +39,7 @@ what the matrix tool prints; a test "covers" a key when it feeds that kind of in
 - Getters, setters, records' accessors, `equals`/`hashCode`/`toString` unless hand-written with logic.
 - Private methods: tested through the public method that uses them. If a private method needs its own test, that is a
   design finding for `issues.md`, not a reason to use reflection.
-- A case the type system already excludes (`null` for a primitive, `empty` for an enum).
+- A case the type system already excludes (`null` for a primitive, `empty` for an enum), or the framework excludes: a required `@PathVariable` or `@RequestParam` is never `null`, an empty path segment does not route to the method.
 - A case an earlier layer already rejects **and** a test of that layer exists: name the test.
 
 ## 4. How to write them
