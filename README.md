@@ -27,7 +27,7 @@ default**; the same scripts and agents work on Maven repositories (the scripts d
     migrator.agent.md          API migrations (JUnit4->5, javax->jakarta, Log4j->SLF4J, ...)
     test-engineer.agent.md     unit tests, integration tests, coverage raising
     docs-writer.agent.md       diagrams (Mermaid), READMEs, API reference, runbooks, Javadoc, ADRs
-    log-engineer.agent.md      audit, add, reduce and modernise logging; prices volume against the log sink
+    log-engineer.agent.md      /add-logs: missing boundary and event logs; /fix-logs: noise, levels, PII, message refactor, config
   prompts/                     slash commands that pre-select the agent and carry per-run inputs
   hooks/
     hooks.json + guard.sh      preToolUse: blocks ALL git writes, installs/downloads, publish/deploy, recursive rm, infra

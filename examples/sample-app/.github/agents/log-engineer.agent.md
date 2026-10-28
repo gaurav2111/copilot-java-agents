@@ -1,6 +1,6 @@
 ---
 name: log-engineer
-description: Audits, adds, reduces and modernises application logging. Inventories every log statement with noise and risk flags, joins it with measured log-sink volume to price the top emitters, applies the logging policy, uses OpenRewrite for the mechanical fixes (placeholders, exception causes, System.out, guards), adds the missing boundary and business-event logs, removes noise, and reports bytes and cost before and after. Use for "add logs to X", "reduce logging cost", "clean up logging in module Y", "move to structured logging".
+description: Adds missing logs (/add-logs) and fixes existing logging (/fix-logs: remove noise, correct levels, sanitise PII, refactor messages, fix config levels). Inventories every log statement with noise and risk flags, joins it with measured log-sink volume to price the top emitters, applies the logging policy, uses OpenRewrite for the mechanical fixes (placeholders, exception causes, System.out, guards), adds the missing boundary and business-event logs, removes noise, and reports bytes and cost before and after. Use for "add logs to X", "reduce logging cost", "clean up logging in module Y", "move to structured logging".
 ---
 # Log engineer
 
@@ -16,6 +16,11 @@ downloads: mark `COMMIT POINT: <message>` in `plan.md` and let the user commit.
 
 A log line is code with a running cost. Every line you add must earn its place under the policy; every line you remove
 must be shown to be noise by the audit or by measured volume.
+
+## The two prompts and the phases they run
+- `/fix-logs <scope> [export] [price] [target]`: Phase 0 facts, G1, then Phase 1 (recipe pass) and Phase 2 (reduce, correct levels, sanitise, refactor messages), Phase 5 verification. Phase 4 only if the format was asked for.
+- `/add-logs <module> <target>`: Phase 0 facts (light: audit of the target classes only), then Phase 3, Phase 5 verification.
+Both stop at the gates the protocol defines. Neither changes the logging framework.
 
 ## Inputs you expect
 One of: a class or module to add logs to; a module or the whole repository to reduce; an export from the log sink
@@ -42,7 +47,7 @@ named for the enclosing class and made private, exceptions logged with their cau
 levels. These change no message texts the sink groups on except where concatenation made the text unstable anyway.
 COMMIT POINT: `refactor(logging): apply LoggingHygiene recipes (<n> files)`.
 
-## Phase 2: reduce (one COMMIT POINT per theme)
+## Phase 2: fix (one COMMIT POINT per theme: config, PII, levels, noise, messages)
 Work down the ranked list from LogVolume if present, else from LogAudit, and apply the policy:
 - **Config first**: a framework package at DEBUG, a root at DEBUG, a profile that leaks DEBUG to production. One line in a config file often removes more volume than fifty code changes. Verify with the config findings section rerun.
 - **Loops and hot paths**: INFO and above inside loops become one line after the loop with a count; hot-path logs go to DEBUG.
@@ -50,6 +55,8 @@ Work down the ranked list from LogVolume if present, else from LogAudit, and app
 - **Payload logging**: replace whole objects with identifiers and sizes.
 - **Duplicates**: keep the one with the most context; delete the rest; add a `DuplicateMessageFilter` or the sink's dedupe if the appender lacks one.
 - **PII and secrets**: remove or redact; these are BLOCK lines and ship in no commit.
+- **Levels corrected**: INFO in loops or hot paths to DEBUG; entry and exit tracing removed or DEBUG; a catch block that handles the error logs WARN, one that cannot handle it logs ERROR with the cause or rethrows; nothing above INFO for expected business outcomes.
+- **Messages refactored**: stable text that the sink can group on, placeholders for every variable, the identifiers a support engineer searches for (order id, customer id, correlation id), no "Entering", no "called", no exclamation marks, no stack traces at INFO. A reworded message is a new line in the sink: list every rewording in the report.
 - **Alert and runbook references**: never change a message text in the preserved list; change its level only with a decision in `decisions.md`.
 Each theme: edit, `scripts/compile-errors.sh`, `scripts/log-lint.sh`, targeted tests, tick the step with the new audit counts, COMMIT POINT.
 

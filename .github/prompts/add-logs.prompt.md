@@ -1,11 +1,15 @@
 ---
-description: "Add the logs the policy says are missing to a class, a module or a flow: boundary completion lines, business events, outbound call summaries, exception causes, correlation id"
+description: "Add the logs a class, module or flow is missing, under the logging policy: boundary completion lines, business events, outbound call summaries, exception causes, correlation id. Never changes behaviour."
 agent: log-engineer
-argument-hint: "module ClassA,ClassB   or   module 'flow description'"
+argument-hint: "module | target (class list, package, or a flow in words) | optional: structured format (ecs|logstash|gelf)"
 ---
-Add logging to ${input:target} in `${input:module}`.
+Add logging in module `${input:module}` to: ${input:target}.
 
-Phase 0 facts and audit first, so I can see what exists. At G1 confirm the boundaries you found and the structured
-format in use. Then one COMMIT POINT per class or boundary, every line checked by `scripts/log-lint.sh`, placeholders
-only, no payloads, no PII, message texts stable. Add or update one test for an ERROR path per class. Do not change
-behaviour.
+Do this, in order, and stop where it says:
+1. Read `.github/LOGGING-POLICY.md`. Run `java scripts/LogAudit.java <module> 15` so you know what already exists; do not add a line that duplicates one.
+2. For each class in the target, list the boundaries and events the policy says must be logged and are missing: inbound completion (outcome, duration, identifiers), outbound calls (target, duration, status; WARN on retry or fallback), business events (INFO with the identifiers a support engineer searches for), catch blocks (cause attached or rethrown, never both). Show me that list as the plan and WAIT.
+3. On go: one class per COMMIT POINT. Placeholders only, stable message text, no payloads, no PII, MDC for the correlation id at the boundary if the project has none. ${input:format:Keep the project's current output format.}
+4. After each class: `scripts/log-lint.sh <files>` must be clean, `scripts/compile-errors.sh <module>` green, and one test for an ERROR path proving the cause is attached (ListAppender or OutputCaptureExtension), unless such a test exists.
+5. Report: lines added per class and boundary, before/after counts from LogAudit, anything the policy forbade that I asked for.
+
+Never change production behaviour, never add computation inside log arguments, never touch messages that alerts or runbooks depend on.

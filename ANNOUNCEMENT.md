@@ -2,7 +2,7 @@
 
 This is a draft; I am still testing it and aim to release a finished version by Diwali.
 
-What is in the pack: 7 agents, 16 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
+What is in the pack: 7 agents, 15 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
 15 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
 with planted flaws, and 4 documents (README, testing checklist, OpenRewrite adoption plan, roadmap).
 
@@ -115,9 +115,8 @@ Type `/` in Copilot chat to see these. Each one picks the right agent and asks f
 | `/add-integration-test <module> '<flow>'` | One integration test for a flow, on the narrowest Spring slice, with Testcontainers or WireMock. |
 | `/document <subject> \| <format>` | Sequence or flow diagrams, module README, API reference, runbook, Javadoc or ADR, every statement traced to a file. |
 | `/review-upgrade-pr <base>` | Pre-PR checklist against the pack's rules: commit hygiene, no disabled tests, no silent flags, report present. |
-| `/audit-logs <scope> [export.csv] [price]` | Read-only inventory of every log statement with noise and risk flags, priced against the log sink when an export is given. |
-| `/reduce-logs <scope> <target> [export.csv]` | Cuts log volume and cost: config levels first, then loops, tracing, payloads, duplicates, PII; recipe pass for the mechanical fixes; bytes and $ before and after. |
-| `/add-logs <module> <classes or flow>` | Adds the logs the policy says are missing: boundary completion lines, business events, outbound call summaries, exception causes, correlation id. |
+| `/fix-logs <scope> [export.csv] [price] [target]` | Cleans up logging: audit first, then config levels, the mechanical recipe pass, PII removed, levels corrected, noise removed, messages refactored to stable placeholder text; one commit point per theme; bytes and $ before and after when a sink export is given. |
+| `/add-logs <module> <classes or flow>` | Adds the logs the policy says are missing: boundary completion lines, business events, outbound call summaries, exception causes, correlation id. Never changes behaviour. |
 | `/resume .agent-work/<folder>` | Continue any task in a fresh chat or on a different model, from its work files. |
 
 The agents behind them: `planner`, `upgrader`, `security-fixer`, `migrator`, `test-engineer`, `docs-writer`, `log-engineer`. Pick one
