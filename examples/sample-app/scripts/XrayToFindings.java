@@ -9,6 +9,8 @@ import java.util.stream.*;
  * findings.csv that CveTriage.java reads, and prints a short summary. Nobody reads the JSON; this tool does.
  *
  *   java scripts/XrayToFindings.java xray-report.json [findings.csv] [--min-severity High] [--all-versions]
+ *   An artifact the report lists at several versions (several modules or built artifacts) becomes one row per artifact+CVE:
+ *   newest version seen, highest fixed version listed, highest severity. --all-versions keeps one row per version.
  *   java scripts/XrayToFindings.java xray-after.json --diff xray-before.json        # closed / still open / new by issue id
  *
  * Output columns: Group ID, Artifact ID, Version, CVE, Severity, Fix Version, Issue ID, Applicable, Summary
@@ -47,6 +49,27 @@ public class XrayToFindings {
         Map<String, Finding> uniq = new LinkedHashMap<>();
         for (Finding f : findings) uniq.putIfAbsent(f.group + ":" + f.artifact + ":" + f.version + ":" + f.cve, f);
         findings = new ArrayList<>(uniq.values());
+        // collapse: the same artifact scanned at several versions (several built artifacts or modules in one report) becomes one
+        // row per artifact+CVE: the newest version seen, the highest fix any of them lists, the highest severity. The build's
+        // resolved version decides later (CveTriage/BomFix); the report version only tells what the scanner saw. --all-versions keeps every row.
+        List<String> collapsed = new ArrayList<>();
+        if (!allVersions) {
+            Map<String, List<Finding>> byGaCve = new LinkedHashMap<>();
+            for (Finding f : findings) byGaCve.computeIfAbsent(f.group + ":" + f.artifact + "|" + f.cve, k -> new ArrayList<>()).add(f);
+            List<Finding> merged = new ArrayList<>();
+            for (List<Finding> grp : byGaCve.values()) {
+                if (grp.size() == 1) { merged.add(grp.get(0)); continue; }
+                Finding keep = grp.stream().max((a, b) -> compareVersions(a.version, b.version)).get();
+                Finding m = new Finding(); m.group = keep.group; m.artifact = keep.artifact; m.version = keep.version; m.cve = keep.cve; m.applicable = keep.applicable; m.summary = keep.summary;
+                m.fix = grp.stream().map(f -> f.fix).filter(x -> !x.isEmpty()).max(XrayToFindings::compareVersions).orElse("");
+                m.severity = grp.stream().max(Comparator.comparingInt(f -> rank(f.severity))).get().severity;
+                m.issueId = grp.stream().map(f -> f.issueId).filter(x -> !x.isEmpty()).distinct().collect(Collectors.joining(";"));
+                merged.add(m);
+                collapsed.add(m.group + ":" + m.artifact + " " + m.cve + ": seen at " + grp.stream().map(f -> f.version).sorted(XrayToFindings::compareVersions).collect(Collectors.joining(", "))
+                        + " -> kept " + m.version + (m.fix.isEmpty() ? " (no fixed version in any of them)" : " (fix " + m.fix + ")"));
+            }
+            findings = merged;
+        }
         findings.sort(Comparator.comparingInt((Finding f) -> -rank(f.severity)).thenComparing(f -> f.group + f.artifact));
         try (var w = Files.newBufferedWriter(out)) {
             w.write("Group ID,Artifact ID,Version,CVE,Severity,Fix Version,Issue ID,Applicable,Summary\n");
@@ -60,6 +83,7 @@ public class XrayToFindings {
         long noFix = findings.stream().filter(f -> f.fix.isEmpty()).count();
         System.out.printf("XRAY -> FINDINGS: %d raw findings, %d after dedupe%s, by severity %s%n", before, findings.size(), minSev == null ? "" : " at or above " + minSev, bySev);
         System.out.printf("components: %d, distinct bumps: %d, no fixed version: %d, marked not applicable: %d%n", components, bumps, noFix, notApplicable);
+        if (!collapsed.isEmpty()) { System.out.println("collapsed " + collapsed.size() + " artifact+CVE pair(s) listed at several versions (--all-versions keeps them apart):"); collapsed.stream().limit(15).forEach(c -> System.out.println("  " + c)); if (collapsed.size() > 15) System.out.println("  ... " + (collapsed.size() - 15) + " more"); }
         System.out.println("written: " + out + "   next: scripts/dep-tree.sh && java scripts/CveTriage.java " + out + " build/deptree.txt");
     }
 
