@@ -46,6 +46,7 @@ scripts/
   rewrite.sh                   OpenRewrite dry run/apply without touching the build; prints patch summary; --module <dir> applies one module's part only
   rewrite-init.gradle          Gradle init script used by rewrite.sh (no build.gradle changes)
   CoverageGaps.java            JaCoCo XML (Gradle or Maven layout) -> ranked under-covered classes (java 11+, no build)
+  TestMatrix.java              public methods x applicable input/behaviour cases (keys in .github/TEST-CASES.md) x what existing tests mention; drives /unit-tests
   CveTriage.java               scanner CSV + dependency tree (either format) -> cve | reach | resolved | strategy
   XrayToFindings.java          Xray JSON report (REST or jf audit shape) -> findings.csv; one row per artifact+CVE (newest version seen, highest fix); picks the least-breaking fixed version; --diff closes the loop
   BomFix.java                  resolved vs BOM-managed vs fix: stale scan, override, or the first BOM release per hop size that fixes it, with collateral;

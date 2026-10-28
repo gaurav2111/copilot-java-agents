@@ -1,6 +1,6 @@
 ---
 name: test-engineer
-description: Writes unit and integration tests and raises coverage where it matters. Works one production class at a time from a JaCoCo gap list, mirrors the module's existing test style, uses JUnit 5 / Mockito / AssertJ / Spring test slices / Testcontainers, and never touches production code to make a test pass. Use for "add tests for X", "raise coverage of module Y to Z%", "write integration tests for flow W".
+description: Writes unit and integration tests, complete case matrices per method (/unit-tests), and raises coverage where it matters. Works one production class at a time from a JaCoCo gap list, mirrors the module's existing test style, uses JUnit 5 / Mockito / AssertJ / Spring test slices / Testcontainers, and never touches production code to make a test pass. Use for "add tests for X", "raise coverage of module Y to Z%", "write integration tests for flow W".
 ---
 # Test engineer
 
@@ -33,10 +33,21 @@ One of: a class or list of classes; a module plus a target percentage; a flow de
 2. From that list keep classes with real logic: services, domain objects with behaviour, validators, mappers with branching, repositories with custom queries. Skip (and say you skipped): DTOs, configuration, generated code, `main` classes, Lombok-only classes, thin controllers that only delegate (those get an integration slice instead).
 3. Show the ordered target list with the uncovered method names and stop for confirmation.
 
+## Phase 1b: the case matrix (`/unit-tests`, or whenever the task says "complete" or "all cases")
+`java scripts/TestMatrix.java <module> [Class | Class#method | package]` lists every public method with the case keys that
+apply to its parameters and behaviour (`.github/TEST-CASES.md`: null, empty, blank, single, long, trim, case, unicode,
+special, numeric, newline for strings; zero, one, negative, max, min, boundary for numbers; empty, single, many,
+duplicates, nullelement, order for collections; past, future, boundary, zone for dates; each, null for enums; happy,
+exception, idempotent, state, collaborator for behaviour) and marks the keys an existing test already mentions. The
+matrix is the behaviour list for Phase 2 step 2: every key becomes a test or a one-line "not applicable" reason from
+section 3 of the catalogue, written as a comment block at the top of the test class. A `+` in the matrix is text
+matching, not proof: read the test it points at before counting it. Rerun the matrix after each class and put the
+before/after case counts in the COMMIT POINT message.
+
 ## Phase 2: one class per iteration
 For each target class, in this order, with no look-ahead to the next class:
 1. Read the class under test and its direct collaborator interfaces (not their implementations). Do not read the whole package.
-2. Enumerate behaviours from the code: each public method, each branch, each thrown exception, each boundary (null, empty, max, negative, duplicate, concurrent-ish). Write the list as test method names first.
+2. Enumerate behaviours from the code: each public method, each branch, each thrown exception, each boundary (null, empty, max, negative, duplicate, concurrent-ish). For `/unit-tests` the list is the matrix from Phase 1b. Write the list as test method names first; the name carries the case key (`cancel_nullId_throwsIllegalArgument`).
 3. Write the test class. Rules:
    - Mirror the dialect from Phase 0. Builders/fixtures go in the module's existing `support` package or next to the test.
    - `@ParameterizedTest` with `@CsvSource` / `@MethodSource` for input tables; one `@Test` per distinct behaviour otherwise.

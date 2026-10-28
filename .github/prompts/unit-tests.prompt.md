@@ -1,0 +1,18 @@
+---
+description: "Write complete unit tests for a method, a class, a package or a whole module: every public method against every input case that applies (null, empty, blank, special characters, case, unicode, zero, negative, boundaries, duplicates, dates, enums) and every behaviour case (happy path, each exception, state, collaborator failure), tracked by the case matrix tool"
+agent: test-engineer
+argument-hint: "module | target: Class, Class#method, a package (com.x.y) or 'all' | optional: style (parameterized or per-case) | optional: max classes per batch"
+---
+Write complete unit tests in module `${input:module}` for `${input:target:all}`. Style: ${input:style:parameterized}. Batch size for a package or 'all': ${input:batch:5} classes.
+
+Completeness is defined by `.github/TEST-CASES.md`, not by coverage: every public method, every case key that applies to its parameters and its behaviour, each either tested or listed as not applicable with a reason from section 3 of that file.
+
+Do this, in order, and stop where it says:
+1. Phase 0 (dialect): read one exemplar test in the module and the module's test dependencies. Name the exemplar.
+2. Matrix: `java scripts/TestMatrix.java ${input:module} ${input:target}` (omit the target for 'all'). Record its summary line in `facts.md`. For a package or 'all', also run `java scripts/CoverageGaps.java "**" 100 30` if a JaCoCo report exists and order the classes by that ranking; otherwise by the matrix's missing count.
+3. G1: show the summary, the ordered class list with the number of missing cases per class, the classes you will skip under section 3 (accessors, DTOs, configuration, `main`) and ask, as numbered options: the order, anything to exclude, and whether a production bug found on the way is to be reported only or also filed. WAIT.
+4. Per class, one at a time, no look-ahead: read the class and its collaborator interfaces; take the matrix rows for it; write the test class in the module's dialect, one `@ParameterizedTest` per key group (`@NullSource`, `@EmptySource`, `@NullAndEmptySource`, `@ValueSource`, `@CsvSource`, `@MethodSource`) and one `@Test` per behaviour key, method names carrying the key (`cancel_nullId_throwsIllegalArgument`, `place_quantity_boundary`); every test asserts a value, a state change or an exception with its message. Cases that do not apply go into a comment block at the top of the test class with the section 3 reason, so the next run of the matrix and the next reader see the decision. Then `scripts/test-summary.sh ${input:module} <TestClass>` until green, `java scripts/TestMatrix.java ${input:module} <Class>` to show the matrix after, `java scripts/CoverageGaps.java` for the class if a report exists, and `COMMIT POINT: test(<module>): <Class> cases <before>/<total> -> <after>/<total>`.
+5. After each batch of ${input:batch:5} classes: the module's whole test task once (`scripts/test-summary.sh ${input:module}`), then the next batch after my go.
+6. Report: per class the cases covered before and after, tests added, line and branch coverage before and after when a report exists, production bugs found (test kept and `@Disabled("BUG-...: ...")`), refactors proposed for testability, classes skipped and why.
+
+Rules that hold throughout: never change production code; never test a private method by reflection; a test that only proves "does not throw" or only calls accessors is deleted before the commit point; for each test you must be able to name the one-line production change that would make it fail. The matrix's `+` marks are hints from text matching, not proof: confirm a case by reading the test it points at, never by trusting the mark.
