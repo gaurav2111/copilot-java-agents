@@ -21,6 +21,7 @@ what the matrix tool prints; a test "covers" a key when it feeds that kind of in
 | Enums | `each` `null` | every constant through the method at least once; `null` |
 | Domain objects (your own types) | `null` `valid` `invalid` `nullfield` | `null`; a valid instance from the module's builder; an instance that violates its own rules; a valid instance with one `null` field |
 | Money, quantities, percentages | `zero` `negative` `max` `rounding` `currency` | as numbers, plus two currencies in one operation |
+| Exception parameters (`@ExceptionHandler`, error mappers) | `message` `nullmessage` | the mapped status and body with a message; the same exception constructed without a message (`new IllegalArgumentException()`), which breaks `Map.of("error", e.getMessage())` |
 
 ## 2. Cases by behaviour (every public method, independent of its parameters)
 
@@ -48,5 +49,8 @@ what the matrix tool prints; a test "covers" a key when it feeds that kind of in
   `cancel_nullId_throwsIllegalArgument`, `place_lineQuantity_boundary`.
 - Every test asserts a value, a state, or an exception with its message. "Does not throw" is not an assertion.
 - For each test, be able to say which one-line change in the production code would make it fail. If none, delete it.
+- A case that does not apply is one line in the test class, in this exact form so the matrix tool can read it:
+  `// not applicable: <method> <key> [<key>...] - <reason>` (inside a block comment: ` * not applicable: get empty newline - the route does not match`).
+  The tool then reports those keys as `n/a` instead of `missing`.
 - The matrix tool marks a key `+` when a test that calls the method also mentions that case; that is a hint, not proof.
-  Confirm by reading only those tests.
+  Confirm by reading only those tests. Tests of an `@ExceptionHandler` are found through the exception type they throw.

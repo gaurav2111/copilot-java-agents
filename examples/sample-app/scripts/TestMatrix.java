@@ -67,7 +67,11 @@ public class TestMatrix {
             if (ms.isEmpty()) continue;
             classes++;
             Path tf = null; for (String suffix : new String[]{"Test", "Tests", "Spec", "IT"}) if (testFiles.containsKey(cls + suffix)) { tf = testFiles.get(cls + suffix); break; }
-            List<String[]> tests = tf == null ? Collections.emptyList() : testMethods(Files.readString(tf));
+            String testSrc = tf == null ? "" : Files.readString(tf);
+            List<String[]> tests = tf == null ? Collections.emptyList() : testMethods(testSrc);
+            Map<String, Set<String>> notApplicable = new HashMap<>();   // "not applicable: <method> <key> [<key>...] - <reason>" lines in the test file
+            Matcher nm = Pattern.compile("not applicable:\\s*(\\w+)\\s+([\\w ]+?)\\s+-\\s").matcher(testSrc);
+            while (nm.find()) notApplicable.computeIfAbsent(nm.group(1), k -> new HashSet<>()).addAll(Arrays.asList(nm.group(2).trim().split("\\s+")));
             if (tf == null) noTest.add(cls);
             StringBuilder cb = new StringBuilder();
             for (String[] m : ms) {
@@ -77,16 +81,20 @@ public class TestMatrix {
                 if (body.contains("throw ") || m[3].contains("throws")) keys.add("exception");
                 for (String p : splitParams(params)) keys.addAll(casesFor(p));
                 List<String> hits = new ArrayList<>(), miss = new ArrayList<>();
-                List<String> relevant = tests.stream().filter(t -> t[1].contains(name + "(") || t[0].toLowerCase().contains(name.toLowerCase())).map(t -> t[0] + " " + t[1]).collect(Collectors.toList());
+                List<String> excNames = splitParams(params).stream().map(TestMatrix::simpleType).filter(x -> x.matches("\\w*(Exception|Error|Throwable)")).collect(Collectors.toList());
+                List<String> relevant = tests.stream().filter(t -> t[1].contains(name + "(") || t[0].toLowerCase().contains(name.toLowerCase()) || excNames.stream().anyMatch(x -> t[1].contains(x))).map(t -> t[0] + " " + t[1]).collect(Collectors.toList());
+                Set<String> na = notApplicable.getOrDefault(name, Collections.emptySet());
                 String blob = String.join("\n", relevant);
+                List<String> nas = new ArrayList<>();
                 for (String k : keys) {
+                    if (na.contains(k)) { nas.add(k); csvRows.add(cls + "," + name + ",\"" + params.replace("\"", "'") + "\"," + k + ",not-applicable"); continue; }
                     boolean hit = !relevant.isEmpty() && mentions(blob, k);
                     (hit ? hits : miss).add(k);
                     csvRows.add(cls + "," + name + ",\"" + params.replace("\"", "'") + "\"," + k + "," + (hit ? "covered" : "missing"));
                 }
-                applicable += keys.size(); covered += hits.size();
+                applicable += keys.size() - nas.size(); covered += hits.size();
                 if (miss.isEmpty() && !ALL) continue;
-                cb.append(String.format("  %-34s covered: %-28s missing: %s%n", name + "(" + shortParams(params) + ")", hits.isEmpty() ? "-" : String.join(" ", hits), miss.isEmpty() ? "-" : String.join(" ", miss)));
+                cb.append(String.format("  %-34s covered: %-28s missing: %s%s%n", name + "(" + shortParams(params) + ")", hits.isEmpty() ? "-" : String.join(" ", hits), miss.isEmpty() ? "-" : String.join(" ", miss), nas.isEmpty() ? "" : "   n/a: " + String.join(" ", nas)));
             }
             out.append(cls).append("  test: ").append(tf == null ? "NONE" : tf.getFileName() + " (" + tests.size() + " tests)").append("\n").append(cb);
         }
@@ -134,6 +142,11 @@ public class TestMatrix {
         out.add(cur.toString().trim()); return out;
     }
 
+    static String simpleType(String decl) {
+        String d = decl.replaceAll("@\\w+(\\([^)]*\\))?\\s*", "").replaceAll("\\bfinal\\s+", "").trim();
+        String type = d.contains(" ") ? d.substring(0, d.lastIndexOf(' ')).trim() : d; String raw = type.replaceAll("<.*>", "").replace("...", "").replace("[]", "");
+        return raw.contains(".") ? raw.substring(raw.lastIndexOf('.') + 1) : raw;
+    }
     static String shortParams(String params) { return splitParams(params).stream().map(p -> p.replaceAll("@\\w+(\\([^)]*\\))?\\s*", "").replaceAll("\\bfinal\\s+", "").replaceAll("<.*>", "").trim().split("\\s+")[0]).collect(Collectors.joining(", ")); }
 
     /** cases that apply to one parameter declaration such as "String id" or "List<Order.Line> lines" */
@@ -160,21 +173,35 @@ public class TestMatrix {
             case "LocalDate": case "LocalDateTime": case "LocalTime": case "Instant": case "ZonedDateTime": case "OffsetDateTime": case "Date": case "Duration": case "Period": case "YearMonth": return Arrays.asList("null", "past", "future", "boundary", "zone");
             case "UUID": case "URI": case "URL": case "Path": case "File": case "Pattern": case "Locale": case "Currency": return Arrays.asList("null", "malformed", "valid");
             case "Object": return Arrays.asList("null", "valid", "invalid");
+            case "Exception": case "RuntimeException": case "Throwable": case "Error": return Arrays.asList("message", "nullmessage");
             default:
                 if (simple.isEmpty()) return Collections.emptyList();
-                if (simple.matches("([A-Z][A-Za-z0-9_]*)?(Type|Status|Kind|Mode|Level|State|Category|Enum)")) return Arrays.asList("each", "null");   // enum by naming convention
+                if (simple.matches("([A-Z][A-Za-z0-9_]*)?(Type|Status|Kind|Mode|Level|State|Category|Enum)")) return Arrays.asList("each", "null");
+                if (simple.matches("\\w+(Exception|Error|Throwable)")) return Arrays.asList("message", "nullmessage");   // @ExceptionHandler and similar   // enum by naming convention
                 if (simple.matches("(Money|Amount|Price|Quantity|Percentage|Rate)")) return Arrays.asList("null", "zero", "negative", "max", "rounding", "currency");
                 return Arrays.asList("null", "valid", "invalid", "nullfield");
         }
     }
 
     /** test methods: [name, text] where text = annotations + body, lower-cased for matching but kept raw for non-ASCII */
+    /** same length as src, with string and char literal contents blanked, so braces inside "{...}" JSON do not break brace matching */
+    static String shadow(String src) {
+        StringBuilder sb = new StringBuilder(src); boolean inStr = false, inChr = false;
+        for (int i = 0; i < src.length(); i++) {
+            char c = src.charAt(i);
+            if (inStr) { if (c == '\\') { sb.setCharAt(i, ' '); if (i + 1 < src.length()) sb.setCharAt(++i, ' '); } else if (c == '"') inStr = false; else sb.setCharAt(i, ' '); }
+            else if (inChr) { if (c == '\\') { sb.setCharAt(i, ' '); if (i + 1 < src.length()) sb.setCharAt(++i, ' '); } else if (c == '\'') inChr = false; else sb.setCharAt(i, ' '); }
+            else if (c == '"') inStr = true; else if (c == '\'') inChr = true;
+        }
+        return sb.toString();
+    }
     static List<String[]> testMethods(String src) {
-        List<String[]> out = new ArrayList<>();
+        List<String[]> out = new ArrayList<>(); String sh = shadow(src);
         Matcher m = Pattern.compile("(?s)((?:@\\w+(?:\\([^)]*\\))?\\s*)+)\\s*(?:public\\s+|protected\\s+|private\\s+)?(?:static\\s+)?(?:final\\s+)?[\\w<>\\[\\]]+\\s+(\\w+)\\s*\\([^)]*\\)\\s*(?:throws[^{]*)?\\{").matcher(src);
         while (m.find()) {
             String ann = m.group(1); if (!ann.contains("@Test") && !ann.contains("@ParameterizedTest") && !ann.contains("@RepeatedTest") && !ann.contains("@TestFactory")) continue;
-            out.add(new String[]{m.group(2), ann + body(src, m.end())});
+            int end = m.end() + body(sh, m.end()).length();
+            out.add(new String[]{m.group(2), ann + src.substring(m.end(), Math.min(end, src.length()))});
         }
         return out;
     }
@@ -195,7 +222,10 @@ public class TestMatrix {
             case "single": return l.contains("single") || b.matches("(?s).*List\\.of\\([^,()]+\\).*") || lits.stream().anyMatch(x -> x.length() == 1);
             case "long": return b.contains("repeat(") || l.contains("toolong") || l.contains("maxlength") || lits.stream().anyMatch(x -> x.length() > 100);
             case "trim": return l.contains("trim") || lits.stream().anyMatch(x -> !x.trim().isEmpty() && (x.startsWith(" ") || x.endsWith(" ")));
-            case "case": return b.contains("toUpperCase") || b.contains("toLowerCase") || l.contains("uppercase") || l.contains("lowercase") || l.contains("mixedcase") || l.contains("caseinsensitive") || l.contains("ignorecase");
+            case "case": { Map<String, Set<String>> byLower = new HashMap<>(); for (String x : lits) if (x.matches(".*[A-Za-z].*")) byLower.computeIfAbsent(x.toLowerCase(), k -> new HashSet<>()).add(x);
+                           return byLower.values().stream().anyMatch(v -> v.size() > 1) || b.contains("toUpperCase") || b.contains("toLowerCase") || l.contains("uppercase") || l.contains("lowercase") || l.contains("mixedcase") || l.contains("caseinsensitive") || l.contains("ignorecase"); }
+            case "message": return l.contains("hasmessage") || l.contains("getmessage") || l.contains("error\"") || l.contains("message");
+            case "nullmessage": return l.contains("nullmessage") || l.contains("withoutmessage") || b.matches("(?s).*new \\w*(Exception|Error)\\(\\).*");
             case "unicode": return l.contains("unicode") || b.contains("\\u") || lits.stream().anyMatch(x -> x.chars().anyMatch(c -> c > 127));
             case "special": return l.contains("special") || lits.stream().anyMatch(x -> x.matches(".*[!@#$%^&*|;<>'\\\\].*"));
             case "numeric": return l.contains("numeric") || lits.stream().anyMatch(x -> x.matches("\\d+"));
