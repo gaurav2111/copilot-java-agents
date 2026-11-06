@@ -58,12 +58,30 @@ For each target class, in this order, with no look-ahead to the next class:
 5. Re-run the gap tool for this one class (`java scripts/CoverageGaps.java <report> 100 50 | grep <ClassName>`) and record before/after line and branch numbers.
 6. COMMIT POINT: `test(<module>): cover <ClassName> (<before>% -> <after>%)`; tick the step in `plan.md`.
 
-## Phase 3: integration tests
-1. Pick the narrowest slice that proves the flow: `@WebMvcTest` (HTTP contract, validation, error mapping), `@DataJpaTest` (queries, mappings, constraints), `@JsonTest` (serialisation shape), `@RestClientTest` / WireMock (outbound HTTP), full `@SpringBootTest` only for cross-layer flows and transactional behaviour.
-2. Infrastructure via Testcontainers using the module's existing container setup (shared static container, `@ServiceConnection` or `@DynamicPropertySource` as the module already does). Never point at a shared dev environment.
-3. One IT class per flow, named `<Flow>IT`, in the module's integration source set / `integrationTest` task (Maven: failsafe). Data created by the test is removed by the test (`@Sql` cleanup, `@Transactional` rollback, or truncation in `@AfterEach`).
-4. Keep the Spring context cache warm: reuse the same `@SpringBootTest` configuration and profile; avoid per-class `@MockBean`/`@MockitoBean` unless the module already does so.
-5. Run `scripts/test-summary.sh <module> '<Flow>IT'`, then the module's whole IT set once to catch ordering/leak issues.
+## Phase 3: integration tests (`/add-integration-test` for one flow, `/integration-tests` for an endpoint or module)
+Rules: `.github/INTEGRATION-TEST-POLICY.md`. No containers, no cloud projects, no credentials; nothing pulled or started by you.
+1. Facts first: `scripts/it-env.sh <module>` (test profiles, connection values present or missing, database host and
+   emulator reachability, substitutes on the test classpath, existing base classes). Then one existing IT or slice test.
+2. Slice: the narrowest that proves the flow. `@WebMvcTest` (HTTP contract, validation, error mapping), `@DataJpaTest`
+   (queries, mappings, constraints, against the test database), `@JsonTest`, `@RestClientTest` or WireMock in the JVM
+   (outbound HTTP), full `@SpringBootTest` through the module's `AbstractIntegrationTest` for cross-layer flows.
+3. One numbered question per external system at G1, options from policy section 1 in this order: reuse what the module
+   has; the developer's test database (`TEST_DB_URL` and friends, never written by you) or the local Pub/Sub emulator
+   with `PubSubTestSupport`; an in-process substitute from the mirror (WireMock, embedded Kafka, in-memory `Storage`) as
+   a proposal; a fake at the port the application owns; `@MockitoBean` on the client bean as the last resort; stop.
+   The answer goes to `decisions.md` and to one comment line at the top of the test class.
+4. Database isolation as answered: `@Transactional` rollback when the flow allows it, otherwise `DatabaseTestSupport`
+   (run id in every key, registered rows deleted in `@AfterEach`). Never truncate, never change the schema, migrations
+   disabled in the test profile unless the answer allows them.
+5. Pub/Sub: the emulator is started by the developer; you check the port and ask when it is closed. Topics and
+   subscriptions through `PubSubTestSupport` with the run id in the name, purge before each test, pull with a timeout for
+   assertions, delete at the end of the class.
+6. One base class per module, written once after a go, from `examples/test-support/AbstractIntegrationTest.java` adapted
+   to the module; every IT extends it so the context is built once. `<Flow>IT`, integration source set or
+   `integrationTest` task (Maven: failsafe), passes in any order, cleans what it created.
+7. Per flow the checklist from policy section 7: `happy validation downstream auth replay cleanup`, each a test method
+   or a not-applicable line with the reason. Run the class alone, then the module's IT set once.
+8. Test-side changes without a question: policy section 4. Everything in section 5 waits for a decision.
 
 ## Phase 4: quality gate before you report
 - Mutation sanity on the classes you covered, if PIT is configured (Gradle plugin `info.solidsoft.pitest`): `./gradlew --offline -q :<module>:pitest -Ppitest.targetClasses=<fqcn> -Ppitest.targetTests=<fqcn>Test` if the build exposes those properties, otherwise the module's documented invocation (Maven: `org.pitest:pitest-maven:mutationCoverage -DtargetClasses=... -DtargetTests=...`). Report the mutation score. Under ~60% means the tests assert too little; strengthen before reporting.

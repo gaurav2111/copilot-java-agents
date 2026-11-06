@@ -167,9 +167,26 @@ Type: `/add-integration-test order-service 'POST /orders with an out-of-stock it
 
 Runs:
 ```
+scripts/it-env.sh order-service
 scripts/test-summary.sh order-service 'OrderPlacementIT'
 scripts/test-summary.sh order-service '*IT'
 ```
+Same policy and helpers as `/integration-tests`, for one flow.
+
+## /integration-tests
+Integration tests for an endpoint, a flow or a module without containers: your test database, the local Pub/Sub emulator, in-memory or port fakes elsewhere; every substitute is a question; one commit point per flow.
+
+Type: `/integration-tests order-service | POST /orders` or `/integration-tests order-service | all | db, pubsub` or `/integration-tests billing | 'invoice issued publishes an event and stores the pdf'`
+
+Runs:
+```
+scripts/it-env.sh order-service                                  # facts: profiles, TEST_DB_URL and friends, hosts reachable, substitutes
+scripts/test-summary.sh order-service OrderPlacementIT          # the flow alone
+scripts/test-summary.sh order-service '*IT'                      # the module's IT set once
+```
+Before it can run anything you set `TEST_DB_URL`, `TEST_DB_USER`, `TEST_DB_PASSWORD` and start the emulator
+(`gcloud beta emulators pubsub start --host-port=localhost:8085`). Policy and options: `.github/INTEGRATION-TEST-POLICY.md`;
+helper templates the agent adapts: `examples/test-support/`.
 
 ## /add-logs
 Adds the logs a class, package or flow is missing under the logging policy. Never changes behaviour.
@@ -246,6 +263,7 @@ Runs: whatever the plan's next unticked step names; the agent re-runs that step'
 | `scripts/jdk-check.sh` | jdeps and jdeprscan findings for a target JDK | `scripts/jdk-check.sh 21 order-service` |
 | `scripts/rewrite.sh` | OpenRewrite dry run or apply, per-module patch summary | `scripts/rewrite.sh <recipe> <artifact> [--apply] [--module <dir>]` |
 | `scripts/log-lint.sh` | BLOCK and WARN lines for log statements | `scripts/log-lint.sh order-service` |
+| `scripts/it-env.sh` | integration test facts: profiles, connection values, reachability, substitutes, base classes | `scripts/it-env.sh order-service` |
 | `scripts/cve-flow.sh` | report to verdict table with the delta policy column | `scripts/cve-flow.sh xray.json --module order-service --min-severity HIGH` |
 | `java scripts/XrayToFindings.java` | Xray JSON to findings.csv, one row per artifact and CVE | `java scripts/XrayToFindings.java xray.json findings.csv --min-severity HIGH` |
 | `java scripts/CveTriage.java` | direct or transitive, resolved version, strategy per CVE | `java scripts/CveTriage.java findings.csv build/deptree.txt` |

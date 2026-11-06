@@ -2,8 +2,8 @@
 
 This is a draft; I am still testing it and aim to release a finished version by Diwali.
 
-What is in the pack: 7 agents, 16 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
-16 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
+What is in the pack: 7 agents, 17 prompts, 1 always-on instruction file plus 5 path-scoped ones, 1 guard hook,
+17 scripts, 8 OpenRewrite recipe bundles, 1 shared protocol, 1 team rules file, 1 logging policy, 1 sample project
 with planted flaws, and 4 documents (README, testing checklist, OpenRewrite adoption plan, roadmap).
 
 The old setup was two agents, planner and implementer, each a 600-line file doing everything: upgrades, CVE fixes,
@@ -113,6 +113,7 @@ Type `/` in Copilot chat to see these. Each one picks the right agent and asks f
 | `/add-tests <module> <Class,...>` | Unit tests for named classes, mirroring the module's existing test style. Never touches production code. |
 | `/unit-tests <module> | <Class, Class#method, package or all>` | Complete unit tests: every public method against every input case that applies (null, empty, blank, special characters, case, unicode, zero, negative, boundaries, duplicates, dates, enums) and every behaviour case, tracked by a case matrix tool before and after; one commit point per class. |
 | `/raise-coverage <module> <percent> <max classes>` | Ranks the riskiest untested classes and works through them one at a time with a commit point each. |
+| `/integration-tests <module> | <endpoint, flow or all>` | Integration tests without containers: your test database by connection values you set, the local Pub/Sub emulator with a topic/subscription/purge helper, in-memory or port fakes elsewhere; every substitute is a question you answer; one commit point per flow through a six-key checklist. |
 | `/add-integration-test <module> '<flow>'` | One integration test for a flow, on the narrowest Spring slice, with Testcontainers or WireMock. |
 | `/document <subject> \| <format>` | Sequence or flow diagrams, module README, API reference, runbook, Javadoc or ADR, every statement traced to a file. |
 | `/review-upgrade-pr <base>` | Pre-PR checklist against the pack's rules: commit hygiene, no disabled tests, no silent flags, report present. |
